@@ -1,0 +1,895 @@
+/* ================================================
+   RESET & BASE
+================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* ── Core colours (landing page theme) ── */
+  --black: #111111;
+  --black-soft: #2d2d2d;
+  --white: #ffffff;
+  --bg: #f9f9f9;
+  --surface: #ffffff;
+  --border: #e5e7eb;
+  --text: #111111;
+  --text-muted: #6b7280;
+  --text-light: #9ca3af;
+
+  /* ── Pastel accents (from landing cards) ── */
+  --mint: #a8d5c2; /* Explore card  */
+  --mint-bg: #d4ede5;
+  --peach: #f5c5a3; /* Skills card   */
+  --peach-bg: #fde8d8;
+  --blue-soft: #b8cef0; /* Learn card    */
+  --blue-soft-bg: #dce8f8;
+  --green-soft: #c8e6c0; /* Apply card    */
+  --green-soft-bg: #e4f3e0;
+
+  /* ── Match colours ── */
+  --match-high-bg: #d4ede5;
+  --match-high-text: #1a5c42;
+  --match-mid-bg: #fde8d8;
+  --match-mid-text: #7a3b10;
+  --match-low-bg: #fee2e2;
+  --match-low-text: #991b1b;
+
+  /* ── Utility ── */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.1);
+  --transition: 0.2s ease;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ================================================
+     NAVBAR
+  ================================================ */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 64px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+/* Logo — plain black bold, no gradient, no emoji */
+.logo-text {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--black);
+  letter-spacing: -0.5px;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Avatar — black circle, white initial */
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--black);
+  color: var(--white);
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-username {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.logout-btn:hover {
+  border-color: var(--black);
+  color: var(--black);
+  background: var(--bg);
+}
+
+/* ================================================
+     MAIN CONTENT
+  ================================================ */
+.main-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+/* ================================================
+     WELCOME SECTION
+     — black background like the Sign Up button
+  ================================================ */
+.welcome-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: var(--black);
+  border-radius: 16px;
+  padding: 36px 40px;
+  color: var(--white);
+  flex-wrap: wrap;
+}
+
+.welcome-text h2 {
+  font-size: 26px;
+  font-weight: 900;
+  margin-bottom: 6px;
+  letter-spacing: -0.5px;
+}
+
+.welcome-text p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 14px;
+}
+
+/* Interest tag — subtle white outline pill */
+.interest-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Stat cards inside welcome */
+.welcome-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius);
+  padding: 16px 24px;
+  text-align: center;
+  min-width: 95px;
+}
+
+.stat-number {
+  display: block;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 4px;
+  color: var(--white);
+}
+
+.stat-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 500;
+}
+
+/* ================================================
+     SECTION BLOCKS
+  ================================================ */
+.section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-header h3 {
+  font-size: 18px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+}
+
+/* FontAwesome icons — plain black */
+.section-header h3 i {
+  color: var(--black);
+  font-size: 16px;
+}
+
+.see-all-link {
+  font-size: 13px;
+  color: var(--black);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid var(--black);
+  transition: var(--transition);
+}
+
+.see-all-link:hover {
+  opacity: 0.6;
+}
+
+/* ================================================
+     JOB CARDS
+     — each card gets a soft pastel accent top border
+  ================================================ */
+.jobs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.job-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition),
+    border-color var(--transition);
+  /* Rotate through pastel top borders */
+}
+
+.job-card:nth-child(1) {
+  border-top: 3px solid var(--mint);
+}
+.job-card:nth-child(2) {
+  border-top: 3px solid var(--peach);
+}
+.job-card:nth-child(3) {
+  border-top: 3px solid var(--blue-soft);
+}
+.job-card:nth-child(4) {
+  border-top: 3px solid var(--green-soft);
+}
+.job-card:nth-child(5) {
+  border-top: 3px solid var(--mint);
+}
+
+.job-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--black);
+}
+
+.job-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.job-company-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+
+/* Match badges — pastel tones matching landing */
+.match-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.match-high {
+  background: var(--match-high-bg);
+  color: var(--match-high-text);
+}
+.match-medium {
+  background: var(--match-mid-bg);
+  color: var(--match-mid-text);
+}
+.match-low {
+  background: var(--match-low-bg);
+  color: var(--match-low-text);
+}
+
+.job-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.job-company {
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.job-description {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  flex: 1;
+}
+
+.job-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.job-tag {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* Black button — matches landing page Sign Up */
+.view-job-btn {
+  width: 100%;
+  padding: 10px;
+  background: var(--black);
+  color: var(--white);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+}
+
+.view-job-btn:hover {
+  background: var(--black-soft);
+  transform: translateY(-1px);
+}
+
+/* ================================================
+     COURSE CARDS
+  ================================================ */
+.courses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.course-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+/* Pastel top borders on courses too */
+.course-card:nth-child(1) {
+  border-top: 3px solid var(--peach);
+}
+.course-card:nth-child(2) {
+  border-top: 3px solid var(--blue-soft);
+}
+.course-card:nth-child(3) {
+  border-top: 3px solid var(--mint);
+}
+.course-card:nth-child(4) {
+  border-top: 3px solid var(--green-soft);
+}
+
+.course-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.course-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  border: 1px solid var(--border);
+}
+
+.course-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.course-skill {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.course-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Difficulty badges — pastel */
+.difficulty-badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.diff-beginner {
+  background: var(--mint-bg);
+  color: var(--match-high-text);
+}
+.diff-intermediate {
+  background: var(--peach-bg);
+  color: var(--match-mid-text);
+}
+.diff-advanced {
+  background: var(--blue-soft-bg);
+  color: #1e3a6e;
+}
+
+.course-duration {
+  font-size: 12px;
+  color: var(--text-light);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Outline black button — matches landing page Login */
+.start-course-btn {
+  width: 100%;
+  padding: 10px;
+  background: var(--white);
+  color: var(--black);
+  border: 1.5px solid var(--black);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition);
+  margin-top: auto;
+}
+
+.start-course-btn:hover {
+  background: var(--black);
+  color: var(--white);
+}
+
+/* ================================================
+     PROFILE SUMMARY
+  ================================================ */
+.profile-summary {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  box-shadow: var(--shadow);
+}
+
+.profile-info {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+/* Black avatar — consistent with navbar */
+.profile-avatar-large {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--black);
+  color: var(--white);
+  font-size: 24px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-details h4 {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.profile-details p {
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.profile-details p i {
+  color: var(--black);
+  width: 14px;
+}
+
+.profile-completion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.profile-completion span {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.completion-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+/* Black fill — clean and consistent */
+.completion-fill {
+  height: 100%;
+  background: var(--black);
+  border-radius: 99px;
+}
+
+.completion-pct {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--black);
+}
+
+/* Skill bars */
+.profile-skills h4 {
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+.skill-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.skill-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.skill-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.skill-pct {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.skill-bar {
+  height: 7px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.skill-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 1.2s ease;
+}
+
+/* ================================================
+     MODAL
+  ================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 20px;
+}
+
+.modal-overlay.open {
+  display: flex;
+}
+
+.modal-box {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 520px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  animation: modalIn 0.2s ease;
+}
+
+@keyframes modalIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.modal-close:hover {
+  background: var(--black);
+  color: var(--white);
+  border-color: var(--black);
+}
+
+.modal-job-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.modal-job-logo {
+  width: 54px;
+  height: 54px;
+  border-radius: var(--radius-sm);
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+
+.modal-job-title {
+  font-size: 20px;
+  font-weight: 900;
+  margin-bottom: 3px;
+}
+
+.modal-job-company {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Match box — uses mint pastel bg */
+.modal-match {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--mint-bg);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  margin-bottom: 18px;
+}
+
+.modal-match-score {
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--match-high-text);
+}
+
+.modal-match-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.modal-section {
+  margin-bottom: 16px;
+}
+
+.modal-section h5 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-light);
+  margin-bottom: 6px;
+}
+
+.modal-section p {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.modal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+/* Tags — black filled pills */
+.modal-tag {
+  background: var(--black);
+  color: var(--white);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Black apply button */
+.modal-apply-btn {
+  width: 100%;
+  padding: 13px;
+  background: var(--black);
+  color: var(--white);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+  margin-top: 10px;
+}
+
+.modal-apply-btn:hover {
+  background: var(--black-soft);
+  transform: translateY(-1px);
+}
+
+/* ================================================
+     RESPONSIVE
+  ================================================ */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 16px;
+  }
+  .main-content {
+    padding: 20px 16px 48px;
+  }
+
+  .welcome-section {
+    padding: 24px 20px;
+    flex-direction: column;
+  }
+
+  .welcome-text h2 {
+    font-size: 20px;
+  }
+
+  .welcome-stats {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .stat-card {
+    flex: 1;
+    padding: 12px 8px;
+  }
+
+  .profile-summary {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 20px;
+  }
+
+  .profile-info {
+    flex-direction: column;
+  }
+  .nav-username {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .jobs-grid,
+  .courses-grid {
+    grid-template-columns: 1fr;
+  }
+}
