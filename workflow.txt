@@ -1,0 +1,46 @@
+===============================
+========= Hireready ===========
+===============================
+
+Types of Users
+===============================================
+1. user(applicants - ppl looking to get hired)
+2. admin(company reps - looking to hire)
+3. Superadmin(ME- i control everything)
+===============================================
+
+Admin Workflow (producer - produces jobs, courses, quizzes these get saved in the database)
+=============================================================================================================================================
+-SignUp (info) : DONE
+-LogIn
+-Dashboard ->Overview(contains): total jobs posted/ Active jobs, Total courses/Popular courses, Total No. of Applicants, Pending Applicants
+	   ->Jobs : add a job, provides following info
+		-> job title
+		-> job type - (full/part/contract/intern)
+		-> job location - (onsite/remote)
+		-> salary 
+		-> required skills - e.g.(react, java, python etc.)
+		-> short description
+		-> PRESS NEXT TO PROCEED TO ADD A QUIZ FOR THE JOB
+			Quiz info
+			-> title
+			-> topics (which topics are being tested)
+			-> add questions - select which topic it falls under (can select multiple)
+					 - question type - mcq, t/f, text
+					 - add the mark for the question
+					 - (there should be a button to add questions initially and after each one)
+			-> set pass mark
+			-> set time limit
+			-> PRESS POST JOB TO COMPLETE THE ADD JOB ACTION
+
+	   ->Quizzes : shows 
+	   ->Applicants :
+	   ->Courses :
+	   ->Logout :
+==============================================================================================================================================
+
+User Workflow (consumer - consumes the jobs, courses, quizzes userDashboard loads these from the database, only produces the CV)
+==============================================================================================================================================
+-SignUp -> Survey
+
+-LogIn ->
