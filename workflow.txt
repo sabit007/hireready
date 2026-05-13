@@ -1,6 +1,6 @@
-===============================
-========= Hireready ===========
-===============================
+=====================================================================
+========= Hireready - A Job PLacement & Grooming Platform ===========
+=====================================================================
 
 Types of Users
 ===============================================
@@ -9,12 +9,32 @@ Types of Users
 3. Superadmin(ME- i control everything)
 ===============================================
 
+=============================================================================================================================================
 Admin Workflow (producer - produces jobs, courses, quizzes these get saved in the database)
 =============================================================================================================================================
--SignUp (info) : DONE
--LogIn
+-SignUp : some company rep signs up with the following info
+	-> company name
+	-> company location
+	-> representative's name
+	-> representative's role
+	-> rep company email
+	-> rep phone number
+	-> password
+	-> click sign up to get redirected to the dashboard
+
+-LogIn : logs in with email and password
+
 -Dashboard ->Overview(contains): total jobs posted/ Active jobs, Total courses/Popular courses, Total No. of Applicants, Pending Applicants
-	   ->Jobs : add a job, provides following info
+	   ->Jobs : displays jobs in order of the most applicants applied to it. Information presented as rows with following info
+		-> job title
+		-> job type
+		-> job location
+		-> number of applied applicants(with pass and fail numbers)
+		-> salary
+		-> active/inactive(status)
+		->(there should be some sort options for sorting/filtering the rows using no. of applicants or status)
+
+		  : (action)add a job, provides following info
 		-> job title
 		-> job type - (full/part/contract/intern)
 		-> job location - (onsite/remote)
@@ -32,15 +52,51 @@ Admin Workflow (producer - produces jobs, courses, quizzes these get saved in th
 			-> set pass mark
 			-> set time limit
 			-> PRESS POST JOB TO COMPLETE THE ADD JOB ACTION
+		->Option to close close hiring, the job card disappears from the users dashboard
 
-	   ->Quizzes : shows 
-	   ->Applicants :
-	   ->Courses :
-	   ->Logout :
+	   ->Quizzes : shows the number of active quizzes/total quizzes, provides info about
+		-> title
+		-> topics
+		-> which job its for
+		-> option to edit the questions/time limit
+		-> option to close the quiz, if the job its in is closed this gets closed automatically
+
+	   ->Applicants : (only candidates who pass are displayed)shows info about applicants who applied to the jobs posted by the company rep(admin)
+		-> applied to which job
+		-> name
+		-> score percentage
+		-> view CV
+		-> approve/reject (action button)
+
+	   ->Courses : click the add course, shows the courses posted by the company(e.g. google has courses), to add a course need to provide following info
+		-> course title
+		-> short description
+		-> topics covered
+		-> instructor (just the name, dont want to complicate)
+		-> duration
+		-> modules/lessons
+		    
+		     : the courses tab will display these infos in rows,
+		->course title
+		-> topics
+		-> number of participants (will be ordered by popularity)
+		-> duration
+		-> status(active/closed)
+		-> button to unlist the course
+
+	   ->Logout : logs out of the dashboard gets redirected to the landing page/ admin signup
+
 ==============================================================================================================================================
-
 User Workflow (consumer - consumes the jobs, courses, quizzes userDashboard loads these from the database, only produces the CV)
 ==============================================================================================================================================
--SignUp -> Survey
+-SignUp -> user signs up on our platform, provides following info:
+		-> Full Name
+		-> Email Address
+		-> Phone Number
+		-> password
+		-> confirm password
+		-> user now completes a survey with questions that builds the persons CV/porfolio
+			Survey Questions:
+				-> 
 
 -LogIn ->
