@@ -1,57 +1,33 @@
 <?php
 session_start();
 
-// ====================================================
-// TODO: Uncomment when auth is fully set up
-// if (!isset($_SESSION['user_id'])) {
-//     header('Location: register.php');
-//     exit;
-// }
-// ====================================================
+// TODO: auths et up
 
 // ── Handle final survey submission ──────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finish_survey'])) {
 
-    // ====================================================
-    // DB TODO: Save survey answers
-    // ====================================================
-    // $user_id  = $_SESSION['user_id'];
-    // $field    = $_POST['field']        ?? '';
-    // $role     = $_POST['role']         ?? '';
-    // $prog     = (int)($_POST['skill_prog'] ?? 1);
-    // $db       = (int)($_POST['skill_db']   ?? 1);
-    // $ps       = (int)($_POST['skill_ps']   ?? 1);
-    // $techs    = $_POST['technologies'] ?? '';
-    // $goal     = $_POST['goal']         ?? '';
-    // $style    = $_POST['learn_style']  ?? '';
-    // $avail    = $_POST['availability'] ?? '';
-    //
-    // $stmt = $conn->prepare("
-    //     INSERT INTO user_profiles
-    //         (user_id, preferred_field, preferred_role,
-    //          skill_programming, skill_databases, skill_problem_solving,
-    //          technologies, goal, learning_style, availability)
-    //     VALUES (?,?,?,?,?,?,?,?,?,?)
-    //     ON DUPLICATE KEY UPDATE
-    //         preferred_field       = VALUES(preferred_field),
-    //         preferred_role        = VALUES(preferred_role),
-    //         skill_programming     = VALUES(skill_programming),
-    //         skill_databases       = VALUES(skill_databases),
-    //         skill_problem_solving = VALUES(skill_problem_solving),
-    //         technologies          = VALUES(technologies),
-    //         goal                  = VALUES(goal),
-    //         learning_style        = VALUES(learning_style),
-    //         availability          = VALUES(availability)
-    // ");
-    // $stmt->bind_param('sssiiissss',
-    //     $user_id,$field,$role,$prog,$db,$ps,$techs,$goal,$style,$avail
-    // );
-    // $stmt->execute();
-    // $conn->query("UPDATE users SET profile_complete=1 WHERE id=$user_id");
-    // ====================================================
+    if (isset($_SESSION['user_id'])) {
+        define('DB_HOST', 'localhost');
+        define('DB_USER', 'root');
+        define('DB_PASS', '');
+        define('DB_NAME', 'hireready_db');
 
-    // DUMMY: redirect to dashboard
-    // TODO: change to dashboard.php when built
+        $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+        if (!$conn->connect_error) {
+            $conn->set_charset('utf8mb4');
+            $field  = trim($_POST['field'] ?? '');
+            $userId = (int)$_SESSION['user_id'];
+
+            $stmt = $conn->prepare("UPDATE users SET field=?, survey_done=1 WHERE id=?");
+            $stmt->bind_param('si', $field, $userId);
+            $stmt->execute();
+            $conn->close();
+
+            $_SESSION['survey_done'] = true;
+            $_SESSION['field']       = $field;
+        }
+    }
+
     header('Location: dashboard.php');
     exit;
 }

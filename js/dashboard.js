@@ -5,8 +5,39 @@
 ================================================ */
 
 /* ================================================
-   HELPERS
-================================================ */
+     ENROLL IN A COURSE — "Start Course" button
+  ================================================ */
+async function enrollCourse(courseId, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enrolling…';
+
+  try {
+    const fd = new FormData();
+    fd.append('action', 'enroll_course');
+    fd.append('course_id', courseId);
+
+    const res = await fetch('dashboard.php', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (data.success) {
+      btn.classList.add('enrolled-btn');
+      btn.innerHTML = '<i class="fas fa-check"></i> Enrolled';
+      btn.disabled = true;
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-play"></i> Start Course';
+      alert(data.message || 'Could not enroll. Please try again.');
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-play"></i> Start Course';
+    alert('Network error. Please try again.');
+  }
+}
+
+/* ================================================
+     HELPERS
+  ================================================ */
 function getMatchClass(score) {
   if (score >= 80) return "match-high";
   if (score >= 60) return "match-medium";
@@ -80,9 +111,15 @@ function openJobModal(jobId) {
         <div class="modal-tags">${tagsHTML}</div>
       </div>
   
-      <button class="modal-apply-btn" onclick="goToQuiz(${job.id}, '${job.title}', '${job.company}')">
+      ${job.quiz_id ? `
+      <button class="modal-apply-btn" onclick="goToQuiz(${job.id}, ${job.quiz_id}, '${job.title}', '${job.company}')">
         Apply Now &nbsp;<i class="fas fa-arrow-right"></i>
       </button>
+      ` : `
+      <button class="modal-apply-btn" disabled style="opacity:0.5; cursor:not-allowed;">
+        No Assessment Available
+      </button>
+      `}
     `;
 
   document.getElementById("modalOverlay").classList.add("open");
@@ -94,12 +131,13 @@ function closeModal() {
   document.body.style.overflow = "";
 }
 
-function goToQuiz(jobId, jobTitle, company) {
+function goToQuiz(jobId, quizId, jobTitle, company) {
   // Store job info so quiz page knows which job
   sessionStorage.setItem('quiz_job_id',    jobId);
+  sessionStorage.setItem('quiz_id',        quizId);
   sessionStorage.setItem('quiz_job_title', jobTitle);
   sessionStorage.setItem('quiz_company',   company);
-  window.location.href = 'quiz.php';
+  window.location.href = 'quiz.php?job_id=' + jobId;
 }
 
 // Close modal with Escape key

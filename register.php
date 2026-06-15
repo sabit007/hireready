@@ -1,15 +1,6 @@
 <?php
 session_start();
 
-// ====================================================
-// Commented out until dashboard.php exists
-// TODO: Uncomment when dashboard is built
-// ====================================================
-// if (isset($_SESSION['user_id'])) {
-//     header('Location: dashboard.php');
-//     exit;
-// }
-
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -49,37 +40,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['confirm'] = 'Passwords do not match.';
     }
 
-    // ── If no errors ─────────────────────────
+    // ── If no errors
     if (empty($errors)) {
 
-        // ====================================================
-        // DB TODO: Insert user into database
-        // ====================================================
-        // $hashed     = password_hash($password, PASSWORD_DEFAULT);
-        // $name_parts = explode(' ', $full_name, 2);
-        // $first_name = $name_parts[0];
-        // $last_name  = $name_parts[1] ?? '';
-        // $stmt = $conn->prepare("
-        //     INSERT INTO users (first_name, last_name, email, phone, password)
-        //     VALUES (?, ?, ?, ?, ?)
-        // ");
-        // $stmt->bind_param('sssss', $first_name, $last_name, $email, $phone, $hashed);
-        // $stmt->execute();
-        // $_SESSION['user_id']   = $conn->insert_id;
-        // $_SESSION['user_name'] = $first_name;
-        // $_SESSION['role']      = 'user';
-        // ====================================================
+        // ── DB connection ──────────────────────
+        define('DB_HOST', 'localhost');
+        define('DB_USER', 'root');
+        define('DB_PASS', '');
+        define('DB_NAME', 'hireready_db');
 
-        // DUMMY: Simulate session
-        $name_parts = explode(' ', $full_name, 2);
-        $_SESSION['user_id']   = 1;
-        $_SESSION['user_name'] = $name_parts[0];
-        $_SESSION['role']      = 'user';
+        $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+        if ($conn->connect_error) {
+            $errors['general'] = 'Database error. Please try again later.';
+        } else {
+            $conn->set_charset('utf8mb4');
 
-        // Go to survey after signup
-        // TODO: Change to survey.php when built
-        header('Location: survey.php');
-        exit;
+            // Check for existing email
+            $chk = $conn->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+            $chk->bind_param('s', $email);
+            $chk->execute();
+            $chk->store_result();
+
+            if ($chk->num_rows > 0) {
+                $errors['email'] = 'An account with this email already exists.';
+            } else {
+                $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+                $stmt = $conn->prepare("INSERT INTO users (full_name, email, phone, password_hash, survey_done, created_at)
+                                         VALUES (?, ?, ?, ?, 0, NOW())");
+                $stmt->bind_param('ssss', $full_name, $email, $phone, $hash);
+
+                if ($stmt->execute()) {
+                    $name_parts = explode(' ', $full_name, 2);
+                    $_SESSION['user_id']     = $conn->insert_id;
+                    $_SESSION['user_name']   = $name_parts[0];
+                    $_SESSION['full_name']   = $full_name;
+                    $_SESSION['email']       = $email;
+                    $_SESSION['role']        = 'user';
+                    $_SESSION['survey_done'] = false;
+
+                    header('Location: survey.php');
+                    exit;
+                } else {
+                    $errors['general'] = 'Could not create account. Please try again.';
+                }
+            }
+            $conn->close();
+        }
     }
 }
 ?>

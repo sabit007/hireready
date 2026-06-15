@@ -29,64 +29,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // ── If inputs are valid, check credentials ──
     if (empty($errors)) {
 
-        // ====================================================
-        // DB TODO: Replace this block with real DB check
-        // ====================================================
-        // $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
-        // $stmt->bind_param('s', $email);
-        // $stmt->execute();
-        // $user = $stmt->get_result()->fetch_assoc();
-        //
-        // if (!$user) {
-        //     $errors['general'] = 'No account found with that email.';
-        // } elseif (!password_verify($password, $user['password'])) {
-        //     $errors['general'] = 'Invalid email or password.';
-        // } else {
-        //     $_SESSION['user_id']        = $user['id'];
-        //     $_SESSION['user_name']      = $user['first_name'];
-        //     $_SESSION['role']           = $user['role'];
-        //     $_SESSION['survey_done']    = $user['profile_complete'];
-        //
-        //     if (!$user['profile_complete']) {
-        //         header('Location: register.php');  // back to survey
-        //     } elseif ($user['role'] === 'admin') {
-        //         header('Location: admin/dashboard.php');
-        //     } else {
-        //         header('Location: dashboard.php');
-        //     }
-        //     exit;
-        // }
-        // ====================================================
+        define('DB_HOST', 'localhost');
+        define('DB_USER', 'root');
+        define('DB_PASS', '');
+        define('DB_NAME', 'hireready_db');
 
-        // DUMMY: Simulate login with test credentials
-        // Test email:    test@test.com
-        // Test password: 123456
-        if ($email === 'test@test.com' && $password === '123456') {
-
-            // DUMMY: Simulate a returning user who finished survey
-            $_SESSION['user_id']     = 1;
-            $_SESSION['user_name']   = 'John';
-            $_SESSION['role']        = 'user';
-            $_SESSION['survey_done'] = true;
-
-            header('Location: dashboard.php');
-            exit;
-
-        } elseif ($email === 'new@test.com' && $password === '123456') {
-
-            // DUMMY: Simulate a user who never finished survey
-            $_SESSION['user_id']     = 2;
-            $_SESSION['user_name']   = 'Jane';
-            $_SESSION['role']        = 'user';
-            $_SESSION['survey_done'] = false;
-
-            // Send back to survey if not done
-            header('Location: register.php');
-            exit;
-
+        $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+        if ($conn->connect_error) {
+            $errors['general'] = 'Database error. Please try again later.';
         } else {
-            // Wrong credentials
-            $errors['general'] = 'Invalid email or password. Try test@test.com / 123456';
+            $conn->set_charset('utf8mb4');
+
+            $stmt = $conn->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
+            $stmt->bind_param('s', $email);
+            $stmt->execute();
+            $user = $stmt->get_result()->fetch_assoc();
+
+            if (!$user) {
+                $errors['general'] = 'No account found with that email.';
+            } elseif (!password_verify($password, $user['password_hash'])) {
+                $errors['general'] = 'Invalid email or password.';
+            } else {
+                $name_parts = explode(' ', $user['full_name'], 2);
+                $_SESSION['user_id']     = $user['id'];
+                $_SESSION['user_name']   = $name_parts[0];
+                $_SESSION['full_name']   = $user['full_name'];
+                $_SESSION['email']       = $user['email'];
+                $_SESSION['role']        = 'user';
+                $_SESSION['survey_done'] = (bool)$user['survey_done'];
+                $_SESSION['field']       = $user['field'];
+
+                if (!$user['survey_done']) {
+                    header('Location: survey.php');
+                } else {
+                    header('Location: dashboard.php');
+                }
+                exit;
+            }
+            $conn->close();
         }
 
         $email_value = $email;

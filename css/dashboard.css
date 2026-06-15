@@ -534,6 +534,20 @@ body {
   color: var(--white);
 }
 
+.start-course-btn.enrolled-btn,
+.start-course-btn:disabled {
+  background: #10b981;
+  color: #fff;
+  border-color: #10b981;
+  cursor: default;
+}
+
+.start-course-btn.enrolled-btn:hover,
+.start-course-btn:disabled:hover {
+  background: #10b981;
+  color: #fff;
+}
+
 /* ================================================
      PROFILE SUMMARY
   ================================================ */

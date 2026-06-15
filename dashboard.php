@@ -1,36 +1,68 @@
 <?php
 session_start();
 
-// ============================================================
-// DATABASE INTEGRATION POINT — AUTH CHECK
-// When DB is ready, uncomment the block below
-// and remove the dummy session block beneath it
-// ============================================================
+// ── Auth guard ──────────────────────────────────────────────
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
 
-// if (!isset($_SESSION['user_id'])) {
-//     header("Location: login.php");
-//     exit();
-// }
+// ── Database config ──────────────────────────────────────────
+define('DB_HOST', 'localhost');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_NAME', 'hireready_db');
 
-// ============================================================
-// DUMMY SESSION DATA — Replace with real session values later
-// ============================================================
-$user_id  = 1;
-$username = "Tobias";          // First name (used in greeting + avatar)
-$fullname = "Tobias Reaper";   // ← Full name changed here
-$email    = "tobias@email.com";
-$field    = "Web Development";
+$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+if ($conn->connect_error) {
+    die("DB error: " . $conn->connect_error);
+}
+$conn->set_charset('utf8mb4');
 
-// ============================================================
-// DATABASE INTEGRATION POINT — FETCH SKILLS FROM DB
-// Replace $skills array below with a DB query like:
-//
-// $skills = [];
-// $stmt = $pdo->prepare("SELECT skill_name, level FROM user_skills
-//                         WHERE user_id = ?");
-// $stmt->execute([$user_id]);
-// $skills = $stmt->fetchAll(PDO::FETCH_ASSOC);
-// ============================================================
+// ════════════════════════════════════════════════════════════
+//  AJAX HANDLER — course enrollment
+// ════════════════════════════════════════════════════════════
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    header('Content-Type: application/json');
+
+    if ($_POST['action'] === 'enroll_course') {
+        $courseId = (int)($_POST['course_id'] ?? 0);
+        $userId   = (int)$_SESSION['user_id'];
+        $uName    = $_SESSION['full_name'] ?? ($_SESSION['user_name'] ?? '');
+        $uEmail   = $_SESSION['email'] ?? '';
+
+        if (!$courseId) {
+            echo json_encode(['success' => false, 'message' => 'Invalid course.']);
+            exit;
+        }
+
+        $stmt = $conn->prepare("
+            INSERT INTO course_enrollments (course_id, user_id, user_name, user_email, enrolled_at)
+            VALUES (?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE enrolled_at = enrolled_at
+        ");
+        $stmt->bind_param('iiss', $courseId, $userId, $uName, $uEmail);
+
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'message' => $conn->error]);
+        }
+        exit;
+    }
+
+    echo json_encode(['success' => false, 'message' => 'Unknown action.']);
+    exit;
+}
+
+// ── Session shorthand ────────────────────────────────────────
+$user_id  = (int)$_SESSION['user_id'];
+$username = $_SESSION['user_name'] ?? 'User';
+$fullname = $_SESSION['full_name'] ?? $username;
+$email    = $_SESSION['email']     ?? '';
+$field    = $_SESSION['field']     ?? 'General';
+
+// ── Skills (placeholder until skill-tracking is built) ─────────
 $skills = [
     ["name" => "HTML & CSS",  "level" => 90, "color" => "#f97316"],
     ["name" => "JavaScript",  "level" => 72, "color" => "#eab308"],
@@ -39,161 +71,102 @@ $skills = [
     ["name" => "Node.js",     "level" => 45, "color" => "#10b981"],
 ];
 
-// ============================================================
-// DATABASE INTEGRATION POINT — FETCH RECOMMENDED JOBS FROM DB
-// Replace $jobs array below with a DB query like:
-//
-// $stmt = $pdo->prepare("SELECT jobs.*, match_score
-//                         FROM jobs
-//                         JOIN user_job_matches ON jobs.id = job_id
-//                         WHERE user_id = ?
-//                         ORDER BY match_score DESC
-//                         LIMIT 5");
-// $stmt->execute([$user_id]);
-// $jobs = $stmt->fetchAll(PDO::FETCH_ASSOC);
-// ============================================================
-$jobs = [
-    [
-        "id"          => 1,
-        "title"       => "Frontend Developer",
-        "company"     => "Google",
-        "logo_emoji"  => "G",
-        "logo_bg"     => "#e8f0fe",
-        "logo_color"  => "#4285f4",
-        "match"       => 92,
-        "description" => "Build beautiful UIs for millions of users using React and modern CSS.",
-        "tags"        => ["React", "CSS", "TypeScript"],
-        "type"        => "Full-time",
-        "location"    => "Remote",
-        "salary"      => "\\$95k – \\$130k",
-        "full_desc"   => "Join Google's frontend team to craft pixel-perfect interfaces for consumer-facing products. You'll collaborate with UX designers and backend engineers to ship impactful features.",
-    ],
-    [
-        "id"          => 2,
-        "title"       => "UI/UX Designer",
-        "company"     => "Figma",
-        "logo_emoji"  => "F",
-        "logo_bg"     => "#fce7f3",
-        "logo_color"  => "#ec4899",
-        "match"       => 85,
-        "description" => "Design intuitive user experiences for a world-class design tool.",
-        "tags"        => ["Figma", "Prototyping", "User Research"],
-        "type"        => "Full-time",
-        "location"    => "San Francisco",
-        "salary"      => "\\$90k – \\$120k",
-        "full_desc"   => "Shape the future of design tooling at Figma. Work closely with product managers and engineers to create seamless experiences that help designers worldwide.",
-    ],
-    [
-        "id"          => 3,
-        "title"       => "JavaScript Engineer",
-        "company"     => "Vercel",
-        "logo_emoji"  => "V",
-        "logo_bg"     => "#f1f5f9",
-        "logo_color"  => "#0f172a",
-        "match"       => 78,
-        "description" => "Work on the edge runtime powering Next.js and modern web deployments.",
-        "tags"        => ["JavaScript", "Node.js", "CDN"],
-        "type"        => "Full-time",
-        "location"    => "Remote",
-        "salary"      => "\\$100k – \\$140k",
-        "full_desc"   => "Help build the infrastructure that millions of developers rely on. You'll work on Vercel's edge network, serverless functions, and developer experience tools.",
-    ],
-    [
-        "id"          => 4,
-        "title"       => "React Native Developer",
-        "company"     => "Shopify",
-        "logo_emoji"  => "S",
-        "logo_bg"     => "#d1fae5",
-        "logo_color"  => "#065f46",
-        "match"       => 71,
-        "description" => "Build cross-platform mobile apps for Shopify merchants worldwide.",
-        "tags"        => ["React Native", "Mobile", "GraphQL"],
-        "type"        => "Full-time",
-        "location"    => "Ottawa / Remote",
-        "salary"      => "\\$88k – \\$115k",
-        "full_desc"   => "Join Shopify's mobile team to build features used by 2 million+ merchants. You'll ship to both iOS and Android using React Native with a focus on performance.",
-    ],
-    [
-        "id"          => 5,
-        "title"       => "Web Developer",
-        "company"     => "Stripe",
-        "logo_emoji"  => "S",
-        "logo_bg"     => "#ede9fe",
-        "logo_color"  => "#7c3aed",
-        "match"       => 65,
-        "description" => "Develop and maintain Stripe's developer documentation and web tools.",
-        "tags"        => ["HTML", "CSS", "API"],
-        "type"        => "Contract",
-        "location"    => "Remote",
-        "salary"      => "\\$75k – \\$100k",
-        "full_desc"   => "Help Stripe developers get up and running quickly. You'll work on the docs platform, interactive examples, and tools that lower the barrier to integrating Stripe.",
-    ],
+// ── Recommended jobs (live from DB, posted by admins) ───────────
+$jobs = [];
+$result = $conn->query("
+    SELECT j.*, a.company_name,
+           q.id AS quiz_id, q.title AS quiz_title, q.pass_mark, q.time_limit
+    FROM jobs j
+    JOIN admins a ON a.id = j.admin_id
+    LEFT JOIN quizzes q ON q.job_id = j.id AND q.status = 'active'
+    WHERE j.status = 'active'
+    ORDER BY j.created_at DESC
+");
+
+$logoPalette = [
+    ["bg" => "#e8f0fe", "color" => "#4285f4"],
+    ["bg" => "#fce7f3", "color" => "#ec4899"],
+    ["bg" => "#f1f5f9", "color" => "#0f172a"],
+    ["bg" => "#d1fae5", "color" => "#065f46"],
+    ["bg" => "#ede9fe", "color" => "#7c3aed"],
 ];
 
-// ============================================================
-// DATABASE INTEGRATION POINT — FETCH RECOMMENDED COURSES FROM DB
-// Replace $courses array below with a DB query like:
-//
-// $stmt = $pdo->prepare("SELECT courses.* FROM courses
-//                         JOIN user_course_recommendations
-//                         ON courses.id = course_id
-//                         WHERE user_id = ?
-//                         ORDER BY priority ASC");
-// $stmt->execute([$user_id]);
-// $courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
-// ============================================================
-$courses = [
-    [
-        "title"      => "SQL for Beginners",
-        "icon"       => "🗄️",
+$i = 0;
+while ($row = $result->fetch_assoc()) {
+    $palette = $logoPalette[$i % count($logoPalette)];
+    $i++;
+
+    $skillsList = array_filter(array_map('trim', explode(',', $row['skills'] ?? '')));
+
+    $jobs[] = [
+        "id"          => (int)$row['id'],
+        "title"       => $row['title'],
+        "company"     => $row['company_name'],
+        "logo_emoji"  => strtoupper(substr($row['company_name'], 0, 1)),
+        "logo_bg"     => $palette['bg'],
+        "logo_color"  => $palette['color'],
+        "match"       => 75, // placeholder match score
+        "description" => $row['description'] ? substr($row['description'], 0, 140) : '',
+        "tags"        => array_values($skillsList),
+        "type"        => $row['job_type'],
+        "location"    => $row['location'],
+        "salary"      => $row['salary'] ?: 'Not specified',
+        "full_desc"   => $row['description'] ?: '',
+        "quiz_id"     => $row['quiz_id'] ? (int)$row['quiz_id'] : null,
+    ];
+}
+
+// ── Recommended courses (live from DB) ───────────────────────────
+$courses = [];
+$courseIcons = ["🗄️", "⚛️", "🟢", "🔷", "📘", "🚀"];
+$courseRes = $conn->query("SELECT * FROM courses WHERE status='active' ORDER BY created_at DESC LIMIT 6");
+$ci = 0;
+
+// Find courses this user is already enrolled in
+$enrolledIds = [];
+$enrollRes = $conn->prepare("SELECT course_id FROM course_enrollments WHERE user_id = ?");
+$enrollRes->bind_param('i', $user_id);
+$enrollRes->execute();
+$er = $enrollRes->get_result();
+while ($row = $er->fetch_assoc()) {
+    $enrolledIds[] = (int)$row['course_id'];
+}
+
+while ($row = $courseRes->fetch_assoc()) {
+    $diff = "Beginner";
+    $diffClass = "diff-beginner";
+
+    $courses[] = [
+        "id"         => (int)$row['id'],
+        "title"      => $row['title'],
+        "icon"       => $courseIcons[$ci % count($courseIcons)],
         "icon_bg"    => "#ede9fe",
-        "skill"      => "Master database queries — your weakest area right now",
-        "difficulty" => "Beginner",
-        "diff_class" => "diff-beginner",
-        "duration"   => "4h 30m",
-    ],
-    [
-        "title"      => "Advanced React Patterns",
-        "icon"       => "⚛️",
-        "icon_bg"    => "#dbeafe",
-        "skill"      => "Level up your React with hooks, context and performance tricks",
-        "difficulty" => "Intermediate",
-        "diff_class" => "diff-intermediate",
-        "duration"   => "6h",
-    ],
-    [
-        "title"      => "Node.js Fundamentals",
-        "icon"       => "🟢",
-        "icon_bg"    => "#d1fae5",
-        "skill"      => "Build backend APIs and understand server-side JavaScript",
-        "difficulty" => "Beginner",
-        "diff_class" => "diff-beginner",
-        "duration"   => "5h 15m",
-    ],
-    [
-        "title"      => "TypeScript Crash Course",
-        "icon"       => "🔷",
-        "icon_bg"    => "#dbeafe",
-        "skill"      => "Type safety for JavaScript developers — a must-have skill",
-        "difficulty" => "Intermediate",
-        "diff_class" => "diff-intermediate",
-        "duration"   => "3h 45m",
-    ],
-];
+        "skill"      => $row['description'] ? substr($row['description'], 0, 90) : '',
+        "difficulty" => $diff,
+        "diff_class" => $diffClass,
+        "duration"   => $row['duration'] ?: '—',
+        "enrolled"   => in_array((int)$row['id'], $enrolledIds),
+    ];
+    $ci++;
+}
 
-// ============================================================
-// DATABASE INTEGRATION POINT — FETCH PROFILE STATS FROM DB
-// Replace $stats array below with real counts from DB like:
-//
-// $stmt = $pdo->prepare("SELECT COUNT(*) FROM user_job_matches
-//                         WHERE user_id = ?");
-// $stmt->execute([$user_id]);
-// $job_match_count = $stmt->fetchColumn();
-// ============================================================
+// ── Profile stats ──────────────────────────────────────────────
+$jobMatches = count($jobs);
+
+$applicantRes = $conn->prepare("SELECT COUNT(*) AS cnt FROM applicants WHERE user_id = ?");
+$applicantRes->bind_param('i', $user_id);
+$applicantRes->execute();
+$appliedCount = (int)$applicantRes->get_result()->fetch_assoc()['cnt'];
+
+$profileComplete = 40;
+if (!empty($email))    $profileComplete += 20;
+if (!empty($fullname)) $profileComplete += 20;
+if (!empty($field) && $field !== 'General') $profileComplete += 20;
+
 $stats = [
-    "job_matches"       => 5,   // count from user_job_matches table
-    "new_courses"       => 3,   // count from user_course_recommendations table
-    "profile_complete"  => 72,  // calculate based on filled profile fields
+    "job_matches"       => $jobMatches,
+    "new_courses"       => count($courses),
+    "profile_complete"  => min($profileComplete, 100),
 ];
 ?>
 <!DOCTYPE html>
@@ -383,9 +356,15 @@ $stats = [
               </span>
             </div>
 
-            <button class="start-course-btn">
+            <?php if ($course['enrolled']): ?>
+            <button class="start-course-btn enrolled-btn" disabled>
+              <i class="fas fa-check"></i> Enrolled
+            </button>
+            <?php else: ?>
+            <button class="start-course-btn" onclick="enrollCourse(<?php echo $course['id']; ?>, this)">
               <i class="fas fa-play"></i> Start Course
             </button>
+            <?php endif; ?>
 
           </div>
         <?php endforeach; ?>
