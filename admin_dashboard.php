@@ -640,26 +640,26 @@ function topicChips(string $topics): string {
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section-label">Main</div>
-      <button class="nav-item active" onclick="switchTab('overview',this)">
+      <button class="nav-item active" data-tab="overview" onclick="switchTab('overview',this)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         Overview
       </button>
-      <button class="nav-item" onclick="switchTab('jobs',this)">
+      <button class="nav-item" data-tab="jobs" onclick="switchTab('jobs',this)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
         Jobs
         <span class="nav-badge" id="jobs-badge"><?= count($jobs) ?></span>
       </button>
-      <button class="nav-item" onclick="switchTab('applicants',this)">
+      <button class="nav-item" data-tab="applicants" onclick="switchTab('applicants',this)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Applicants
         <span class="nav-badge" id="applicants-badge"><?= count($applicants) ?></span>
       </button>
-      <button class="nav-item" onclick="switchTab('quizzes',this)">
+      <button class="nav-item" data-tab="quizzes" onclick="switchTab('quizzes',this)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         Quizzes
         <span class="nav-badge" id="quizzes-badge"><?= count($quizzes) ?></span>
       </button>
-      <button class="nav-item" onclick="switchTab('courses',this)">
+      <button class="nav-item" data-tab="courses" onclick="switchTab('courses',this)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         Courses
         <span class="nav-badge" id="courses-badge"><?= count($courses) ?></span>
@@ -1342,6 +1342,7 @@ const topbarMeta = {
 };
 
 function switchTab(tab, el) {
+  localStorage.setItem('activeTab', tab);
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('section-' + tab).classList.add('active');
@@ -1503,8 +1504,8 @@ async function postJob() {
   if (quizData.success) {
     closeModal('modal-add-job');
     resetJobModal();
-    showToast('✓ Job and quiz posted successfully!');
-    setTimeout(() => location.reload(), 1200);
+    sessionStorage.setItem('toastMessage', '✓ Job and quiz posted successfully!');
+    location.reload();
   } else {
     showErr('add-quiz-error', quizData.message || 'Quiz creation failed.');
     btn.disabled = false; btn.textContent = 'Post Job';
@@ -1700,8 +1701,8 @@ async function saveEditQuiz() {
 
   if (data.success) {
     closeModal('modal-edit-quiz');
-    showToast('✓ Quiz updated!');
-    setTimeout(() => location.reload(), 1200);
+    sessionStorage.setItem('toastMessage', '✓ Quiz updated!');
+    location.reload();
   } else {
     showErr('edit-quiz-error', data.message || 'Failed to save quiz.');
   }
@@ -1728,8 +1729,8 @@ async function publishCourse() {
 
   if (data.success) {
     closeModal('modal-add-course');
-    showToast('✓ Course published!');
-    setTimeout(() => location.reload(), 1200);
+    sessionStorage.setItem('toastMessage', '✓ Course published!');
+    location.reload();
   } else {
     showErr('add-course-error', data.message);
   }
@@ -1891,10 +1892,6 @@ function buildAnswerArea(type, uid) {
     </div></div>`;
 
   if (type === 'True/False') return `<div class="answer-area" id="ans-${uid}">
-    <div class="tf-options">
-      <label class="tf-option"><input type="radio" name="tf-${uid}" value="true"> True</label>
-      <label class="tf-option"><input type="radio" name="tf-${uid}" value="false"> False</label>
-    </div>
     <div class="correct-answer-row" style="margin-top:10px;">
       <span class="correct-answer-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Correct Answer</span>
       <select class="correct-answer-select" id="correct-${uid}"><option value="">— select —</option><option value="True">True</option><option value="False">False</option></select>
@@ -2025,6 +2022,26 @@ function collectQuestions(listSelector) {
     return { text, type, mark, options, correct };
   });
 }
+
+// ── DOM CONTENT LOADED INITIALIZER ────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Restore active tab
+  const savedTab = localStorage.getItem('activeTab') || 'overview';
+  const navBtn = document.querySelector(`.sidebar-nav .nav-item[data-tab="${savedTab}"]`);
+  if (navBtn) {
+    switchTab(savedTab, navBtn);
+  } else {
+    const firstNavBtn = document.querySelector('.sidebar-nav .nav-item');
+    if (firstNavBtn) switchTab('overview', firstNavBtn);
+  }
+
+  // Show pending toast if any
+  const pendingToast = sessionStorage.getItem('toastMessage');
+  if (pendingToast) {
+    showToast(pendingToast);
+    sessionStorage.removeItem('toastMessage');
+  }
+});
 </script>
 </body>
 </html>
