@@ -245,185 +245,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['cv_file'])) {
     <?php if ($passed): ?>
 
     <!-- =====================================================
-         CV UPLOAD SECTION (only shown if passed)
+         APPLICATION SUCCESS SECTION (only shown if passed)
     ===================================================== -->
-    <div class="cv-section">
-
-      <!-- Big bold CTA -->
-      <div class="cv-cta">
-        <div class="cv-cta-badge">Next Step</div>
-        <h1 class="cv-cta-title">
-          Now upload your CV
-        </h1>
-        <p class="cv-cta-sub">
-          Tailor it to the
-          <strong><?php echo htmlspecialchars($quiz_job_title); ?></strong>
-          role at
-          <strong><?php echo htmlspecialchars($quiz_company); ?></strong>
-          before uploading.
-        </p>
-      </div>
-
-      <!-- Tailoring tips -->
-      <div class="tailor-tips">
-        <h3 class="tips-title">
-          <i class="fas fa-wand-magic-sparkles"></i>
-          How to tailor your CV for this role
-        </h3>
-        <div class="tips-grid">
-          <div class="tip-item">
-            <div class="tip-num">01</div>
-            <div class="tip-text">
-              <strong>Lead with relevant skills</strong>
-              <span>Highlight React, CSS, and TypeScript at the top of your skills section.</span>
-            </div>
-          </div>
-          <div class="tip-item">
-            <div class="tip-num">02</div>
-            <div class="tip-text">
-              <strong>Match the job keywords</strong>
-              <span>Use the exact terms from the job description — ATS systems scan for them.</span>
-            </div>
-          </div>
-          <div class="tip-item">
-            <div class="tip-num">03</div>
-            <div class="tip-text">
-              <strong>Quantify your impact</strong>
-              <span>Instead of "built a website", say "built a platform serving 10,000+ users".</span>
-            </div>
-          </div>
-          <div class="tip-item">
-            <div class="tip-num">04</div>
-            <div class="tip-text">
-              <strong>Keep it one page</strong>
-              <span>Recruiters spend an average of 7 seconds on a CV. Make every line count.</span>
-            </div>
-          </div>
+    <div class="cv-section" style="text-align: center; background: var(--white); padding: 50px 30px; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);">
+      
+      <div class="upload-success-state">
+        <div class="success-icon-big" style="background: var(--mint-bg); color: var(--black); width: 60px; height: 60px; font-size: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+          <i class="fas fa-circle-check"></i>
         </div>
+        <h3 style="font-size: 22px; font-weight: 900; margin-bottom: 12px; color: var(--black);">Your CV has been forwarded to the company</h3>
+        <p style="font-size: 15px; color: var(--text-muted); line-height: 1.6; margin-bottom: 30px;">
+          Please wait for their approval.
+        </p>
+        <a href="dashboard.php" class="btn-dashboard" style="text-decoration: none;">
+          <i class="fas fa-house"></i>
+          Return to Dashboard
+        </a>
       </div>
-
-      <!-- Upload box -->
-      <div class="upload-section">
-
-        <?php if ($upload_success): ?>
-          <!-- Success state -->
-          <div class="upload-success-state">
-            <div class="success-icon-big">
-              <i class="fas fa-circle-check"></i>
-            </div>
-            <h3>CV Uploaded Successfully!</h3>
-            <p>
-              Your CV has been submitted with your application for
-              <strong><?php echo htmlspecialchars($quiz_job_title); ?></strong>
-              at <strong><?php echo htmlspecialchars($quiz_company); ?></strong>.
-            </p>
-            <a href="dashboard.php" class="btn-dashboard">
-              <i class="fas fa-house"></i>
-              Back to Dashboard
-            </a>
-          </div>
-
-        <?php else: ?>
-
-          <form method="POST" enctype="multipart/form-data"
-                id="cvForm" novalidate>
-
-            <?php if ($upload_error): ?>
-              <div class="upload-error-msg">
-                <i class="fas fa-triangle-exclamation"></i>
-                <?php echo htmlspecialchars($upload_error); ?>
-              </div>
-            <?php endif; ?>
-
-            <!-- Drop zone -->
-            <div class="drop-zone" id="dropZone"
-                 onclick="document.getElementById('cvFile').click()"
-                 ondragover="handleDragOver(event)"
-                 ondragleave="handleDragLeave(event)"
-                 ondrop="handleDrop(event)">
-
-              <div class="drop-zone-content" id="dropContent">
-                <div class="drop-icon">
-                  <i class="fas fa-file-arrow-up"></i>
-                </div>
-                <h3>Drag & drop your CV here</h3>
-                <p>or <span class="browse-link">browse files</span></p>
-                <div class="drop-formats">
-                  <span>PDF</span>
-                  <span>DOC</span>
-                  <span>DOCX</span>
-                  <span class="dot-sep">·</span>
-                  <span>Max 5MB</span>
-                </div>
-              </div>
-
-              <!-- File selected state (hidden by default) -->
-              <div class="drop-zone-selected" id="dropSelected"
-                   style="display:none">
-                <div class="file-preview">
-                  <div class="file-icon">
-                    <i class="fas fa-file-pdf" id="fileTypeIcon"></i>
-                  </div>
-                  <div class="file-info">
-                    <span class="file-name" id="fileName">document.pdf</span>
-                    <span class="file-size" id="fileSize">0 KB</span>
-                  </div>
-                  <button type="button" class="file-remove"
-                          onclick="removeFile(event)">
-                    <i class="fas fa-times"></i>
-                  </button>
-                </div>
-              </div>
-
-            </div>
-
-            <!-- Hidden file input -->
-            <input
-              type="file"
-              name="cv_file"
-              id="cvFile"
-              accept=".pdf,.doc,.docx"
-              style="display:none"
-              onchange="handleFileSelect(this)"
-            />
-
-            <!-- Job context reminder -->
-            <div class="upload-job-reminder">
-              <div class="reminder-left">
-                <i class="fas fa-briefcase"></i>
-                <div>
-                  <span class="reminder-title">
-                    <?php echo htmlspecialchars($quiz_job_title); ?>
-                  </span>
-                  <span class="reminder-company">
-                    @ <?php echo htmlspecialchars($quiz_company); ?>
-                  </span>
-                </div>
-              </div>
-              <div class="reminder-score">
-                <span>Your Score</span>
-                <strong><?php echo $score_pct; ?>%</strong>
-              </div>
-            </div>
-
-            <!-- Submit button -->
-            <button type="submit"
-                    class="btn-upload" id="uploadBtn" disabled>
-              <i class="fas fa-paper-plane"></i>
-              Submit Application
-            </button>
-
-            <p class="upload-note">
-              <i class="fas fa-lock"></i>
-              Your CV is only shared with
-              <?php echo htmlspecialchars($quiz_company); ?>
-            </p>
-
-          </form>
-
-        <?php endif; ?>
-
-      </div><!-- end upload-section -->
 
     </div><!-- end cv-section -->
 

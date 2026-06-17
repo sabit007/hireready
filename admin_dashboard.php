@@ -1814,7 +1814,7 @@ function goToStep1() {
 async function postJob() {
   const title    = document.getElementById('job-title-input').value.trim();
   const type     = document.getElementById('job-type-input').value;
-  const location = document.getElementById('job-location-input').value;
+  const loc      = document.getElementById('job-location-input').value;
   const salary   = document.getElementById('job-salary-input').value.trim();
   const desc     = document.getElementById('job-desc-input').value.trim();
   const skills   = collectTags('skills-tags', 'skills-input');
@@ -1830,7 +1830,7 @@ async function postJob() {
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Posting…';
 
   // 1. Add job
-  const jobData = await api(fd({ action: 'add_job', title, type, location, salary, skills, description: desc }));
+  const jobData = await api(fd({ action: 'add_job', title, type, location: loc, salary, skills, description: desc }));
   if (!jobData.success) { showErr('add-quiz-error', jobData.message); btn.disabled = false; btn.textContent = 'Post Job'; return; }
 
   // 2. Add quiz
@@ -1841,7 +1841,8 @@ async function postJob() {
     closeModal('modal-add-job');
     resetJobModal();
     sessionStorage.setItem('toastMessage', '✓ Job and quiz posted successfully!');
-    location.reload();
+    localStorage.setItem('activeTab', 'jobs');
+    window.location.reload();
   } else {
     showErr('add-quiz-error', quizData.message || 'Quiz creation failed.');
     btn.disabled = false; btn.textContent = 'Post Job';
