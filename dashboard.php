@@ -380,12 +380,12 @@ $stats = [
 
             <?php if ($course['enrolled']): ?>
             <button class="start-course-btn enrolled-btn" disabled>
-              <i class="fas fa-check"></i> Enrolled
+              <i class="fas fa-check"></i> Completed
             </button>
             <?php else: ?>
-            <button class="start-course-btn" onclick="enrollCourse(<?php echo $course['id']; ?>, this)">
+            <a href="course_details.php?id=<?php echo $course['id']; ?>" class="start-course-btn" style="text-decoration:none; display:inline-block; text-align:center;">
               <i class="fas fa-play"></i> Start Course
-            </button>
+            </a>
             <?php endif; ?>
 
           </div>
