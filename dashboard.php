@@ -55,6 +55,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     exit;
 }
 
+// ── GET HANDLER — course enrollment from quiz result page
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['enroll_course_id'])) {
+    $courseId = (int)$_GET['enroll_course_id'];
+    $userId   = (int)$_SESSION['user_id'];
+    $uName    = $_SESSION['full_name'] ?? ($_SESSION['user_name'] ?? '');
+    $uEmail   = $_SESSION['email'] ?? '';
+
+    if ($courseId > 0) {
+        $stmt = $conn->prepare("
+            INSERT INTO course_enrollments (course_id, user_id, user_name, user_email, enrolled_at)
+            VALUES (?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE enrolled_at = enrolled_at
+        ");
+        $stmt->bind_param('iiss', $courseId, $userId, $uName, $uEmail);
+        $stmt->execute();
+        
+        // Redirect back to dashboard to clear query parameter
+        header("Location: dashboard.php");
+        exit;
+    }
+}
+
 // ── Session shorthand ────────────────────────────────────────
 $user_id  = (int)$_SESSION['user_id'];
 $username = $_SESSION['user_name'] ?? 'User';
@@ -202,7 +224,7 @@ $stats = [
       </div>
 
       <!-- Logout -->
-      <a href="logout.php" class="logout-btn">
+      <a href="index.php" class="logout-btn">
         <!-- ============================================================
              DATABASE INTEGRATION POINT — LOGOUT
              Create logout.php with:
@@ -358,12 +380,12 @@ $stats = [
 
             <?php if ($course['enrolled']): ?>
             <button class="start-course-btn enrolled-btn" disabled>
-              <i class="fas fa-check"></i> Enrolled
+              <i class="fas fa-check"></i> Completed
             </button>
             <?php else: ?>
-            <button class="start-course-btn" onclick="enrollCourse(<?php echo $course['id']; ?>, this)">
+            <a href="course_details.php?id=<?php echo $course['id']; ?>" class="start-course-btn" style="text-decoration:none; display:inline-block; text-align:center;">
               <i class="fas fa-play"></i> Start Course
-            </button>
+            </a>
             <?php endif; ?>
 
           </div>

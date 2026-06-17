@@ -15,6 +15,7 @@ define('DB_NAME', 'hireready_db');
 // ── Database Save Handler ───────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_profile') {
     $field  = trim($_POST['field'] ?? '');
+    $role   = trim($_POST['role'] ?? '');
     $cvData = trim($_POST['cv_data'] ?? '');
     $userId = (int)$_SESSION['user_id'];
 
@@ -28,15 +29,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $conn->query("ALTER TABLE users ADD COLUMN cv_data LONGTEXT DEFAULT NULL");
         }
 
-        $stmt = $conn->prepare("UPDATE users SET field=?, cv_data=? WHERE id=?");
-        $stmt->bind_param('ssi', $field, $cvData, $userId);
+        // Ensure role column exists
+        $result = $conn->query("SHOW COLUMNS FROM users LIKE 'role'");
+        if ($result->num_rows == 0) {
+            $conn->query("ALTER TABLE users ADD COLUMN role VARCHAR(255) DEFAULT NULL");
+        }
+
+        $stmt = $conn->prepare("UPDATE users SET field=?, role=?, cv_data=? WHERE id=?");
+        $stmt->bind_param('sssi', $field, $role, $cvData, $userId);
         $stmt->execute();
         $stmt->close();
         $conn->close();
 
         $_SESSION['field'] = $field;
+        $_SESSION['role'] = $role;
     }
     // Return json for AJAX save success
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
     header('Content-Type: application/json');
     echo json_encode(['success' => true]);
     exit;
@@ -55,7 +66,7 @@ $cvStmt->execute();
 $res = $cvStmt->get_result()->fetch_assoc();
 $cvStmt->close();
 $conn->close();
-$cvDataJson = $res['cv_data'] ?? '{}';
+$cvDataJson = (!empty($res) && !empty($res['cv_data'])) ? $res['cv_data'] : '{}';
 
 // ── Capture dashboard.php output ────────────────────────────
 ob_start();
@@ -108,6 +119,54 @@ $modal_markup = '
         color: #fff !important;
         border-color: #111 !important;
     }
+    .skill-chip {
+        padding: 6px 14px;
+        border: 1.5px solid #e5e7eb;
+        border-radius: 99px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #374151;
+        transition: all 0.2s;
+        user-select: none;
+        white-space: nowrap;
+    }
+    .skill-chip:hover {
+        border-color: #111;
+        background: #f9fafb;
+    }
+    .skill-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 5px;
+        background: #e5e7eb;
+        border-radius: 99px;
+        outline: none;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .skill-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #111;
+        cursor: pointer;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 1.5px #111;
+        transition: transform 0.15s;
+    }
+    .skill-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+    .skill-slider::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #111;
+        cursor: pointer;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 1.5px #111;
+    }
 </style>
 
 <div class="profile-edit-overlay">
@@ -130,7 +189,7 @@ $modal_markup = '
       <button type="button" id="tabBtn-education" class="tab-btn px-3 py-1.5 text-xs font-bold text-gray-400 border-b-2 border-transparent transition outline-none cursor-pointer bg-transparent" onclick="switchEditTab(\'education\')">Edu &amp; Summary</button>
     </div>
 
-    <form id="editProfileForm" onsubmit="saveProfile(event)" class="flex-1 flex flex-col overflow-hidden m-0">
+    <form id="editProfileForm" onsubmit="saveProfile(event)" class="flex-1 flex flex-col overflow-hidden m-0" novalidate>
       <!-- Modal Body (scrollable) -->
       <div class="flex-1 overflow-y-auto p-6 modal-content-scroll flex flex-col gap-4">
         
@@ -265,6 +324,7 @@ $modal_markup = '
                   'React', 'Vue', 'Node.js', 'Django', 'Laravel', 'MySQL', 'PostgreSQL', 
                   'MongoDB', 'Docker', 'Git', 'Linux', 'AWS', 'Swift', 'Kotlin', 'Go', 'Flutter'
               ];
+              sort($techs);
               foreach ($techs as $t) {
                   $modal_markup .= '<div class="edit-chip skill-chip" onclick="toggleEditChip(this,\'' . $t . '\')">' . $t . '</div>';
               }
@@ -583,16 +643,6 @@ function compileSurveyState() {
 function validateAll() {
     const gh = document.getElementById("editLinkGithub").value.trim();
     const li = document.getElementById("editLinkLinkedin").value.trim();
-    if (!gh) {
-        alert("GitHub Profile Link is required.");
-        switchEditTab("projects");
-        return false;
-    }
-    if (!li) {
-        alert("LinkedIn Profile Link is required.");
-        switchEditTab("projects");
-        return false;
-    }
 
     if (document.getElementById("editHasProjects").value === "yes") {
         const blocks = document.querySelectorAll("#editProjectList .project-block");
@@ -660,6 +710,7 @@ async function saveProfile(e) {
     const formData = new FormData();
     formData.append("action", "save_profile");
     formData.append("field", survey.field);
+    formData.append("role", survey.role);
     formData.append("cv_data", JSON.stringify(survey));
 
     try {
@@ -680,7 +731,7 @@ async function saveProfile(e) {
         }
     } catch (err) {
         console.error(err);
-        alert("An error occurred. Please try again.");
+        alert("An error occurred while saving: " + err.message);
         btn.disabled = false;
         btn.innerHTML = "Save Changes";
     }
