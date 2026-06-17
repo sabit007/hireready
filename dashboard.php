@@ -93,11 +93,12 @@ $skills = [
     ["name" => "Node.js",     "level" => 45, "color" => "#10b981"],
 ];
 
-// ── Recommended jobs (live from DB, posted by admins) ───────────
 $jobs = [];
 $result = $conn->query("
     SELECT j.*, a.company_name,
-           q.id AS quiz_id, q.title AS quiz_title, q.pass_mark, q.time_limit
+           q.id AS quiz_id, q.title AS quiz_title, q.pass_mark, q.time_limit,
+           (SELECT COUNT(*) FROM applicants ap WHERE ap.job_id = j.id AND ap.user_id = $user_id AND ap.quiz_passed = 1) AS has_applied,
+           (SELECT COUNT(*) FROM applicants ap WHERE ap.job_id = j.id AND ap.user_id = $user_id AND ap.quiz_passed = 1 AND ap.status = 'approved') AS is_hired
     FROM jobs j
     JOIN admins a ON a.id = j.admin_id
     LEFT JOIN quizzes q ON q.job_id = j.id AND q.status = 'active'
@@ -135,6 +136,8 @@ while ($row = $result->fetch_assoc()) {
         "salary"      => $row['salary'] ?: 'Not specified',
         "full_desc"   => $row['description'] ?: '',
         "quiz_id"     => $row['quiz_id'] ? (int)$row['quiz_id'] : null,
+        "applied"     => (int)$row['has_applied'] > 0,
+        "hired"       => (int)$row['is_hired'] > 0,
     ];
 }
 
@@ -242,6 +245,42 @@ $stats = [
   <!-- ===================== MAIN CONTENT ===================== -->
   <main class="main-content">
 
+    <!-- ===== NOTIFICATIONS / HIRING ALERTS ===== -->
+    <?php
+    $hiredStmt = $conn->prepare("
+        SELECT ap.*, j.title AS job_title, a.company_name
+        FROM applicants ap
+        JOIN jobs j ON j.id = ap.job_id
+        JOIN admins a ON a.id = j.admin_id
+        WHERE ap.user_id = ? AND ap.quiz_passed = 1 AND ap.status = 'approved'
+        ORDER BY ap.created_at DESC
+    ");
+    $hiredStmt->bind_param('i', $user_id);
+    $hiredStmt->execute();
+    $hiredResults = $hiredStmt->get_result();
+    if ($hiredResults->num_rows > 0):
+      while ($hiredRow = $hiredResults->fetch_assoc()):
+    ?>
+      <div class="hired-notification-banner" style="display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, #d4ede5 0%, #e4f3e0 100%); border-left: 5px solid #16a34a; border-radius: 12px; padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); animation: slideDown 0.4s ease forwards;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="width: 42px; height: 42px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+            🎉
+          </div>
+          <div>
+            <h4 style="margin: 0; font-size: 15px; font-weight: 800; color: #111;">Application Approved!</h4>
+            <p style="margin: 3px 0 0; font-size: 13px; color: #444; line-height: 1.4;">
+              Congratulations! Your application for <strong><?php echo htmlspecialchars($hiredRow['job_title']); ?></strong> at <strong><?php echo htmlspecialchars($hiredRow['company_name']); ?></strong> has been approved. You are hired!
+            </p>
+          </div>
+        </div>
+        <button onclick="this.parentElement.style.display='none';" style="background: none; border: none; font-size: 16px; font-weight: 700; color: #666; cursor: pointer; padding: 4px 8px; transition: color 0.2s;">✕</button>
+      </div>
+    <?php
+      endwhile;
+    endif;
+    $hiredStmt->close();
+    ?>
+
     <!-- ===== WELCOME SECTION ===== -->
     <section class="welcome-section">
       <div class="welcome-text">
@@ -299,7 +338,7 @@ $stats = [
             else                          $match_emoji = "";
           ?>
 
-          <div class="job-card" onclick="openJobModal(<?php echo $job['id']; ?>)">
+          <div class="job-card" <?php if (!$job['applied']): ?>onclick="openJobModal(<?php echo $job['id']; ?>)"<?php endif; ?> style="<?php echo $job['applied'] ? 'cursor: default;' : ''; ?>">
 
             <div class="job-card-top">
               <div class="job-company-logo"
@@ -330,10 +369,20 @@ $stats = [
               <?php endforeach; ?>
             </div>
 
+            <?php if ($job['hired']): ?>
+            <button class="view-job-btn hired-btn" disabled style="background: #d4ede5; color: #1a5c42; border: 1.5px solid #1a5c42; cursor: not-allowed; pointer-events: none; width: 100%; font-weight: bold;">
+              Hired 🎉
+            </button>
+            <?php elseif ($job['applied']): ?>
+            <button class="view-job-btn applied-btn" disabled style="background: #e5e7eb; color: #9ca3af; border: none; cursor: not-allowed; pointer-events: none; width: 100%;">
+              Applied <i class="fas fa-check"></i>
+            </button>
+            <?php else: ?>
             <button class="view-job-btn"
               onclick="event.stopPropagation(); openJobModal(<?php echo $job['id']; ?>)">
               View Job →
             </button>
+            <?php endif; ?>
 
           </div>
         <?php endforeach; ?>

@@ -111,7 +111,11 @@ function openJobModal(jobId) {
         <div class="modal-tags">${tagsHTML}</div>
       </div>
   
-      ${job.quiz_id ? `
+      ${job.applied ? `
+      <button class="modal-apply-btn" disabled style="background:#e5e7eb; color:#9ca3af; border:none; cursor:not-allowed;">
+        Applied &nbsp;<i class="fas fa-check"></i>
+      </button>
+      ` : job.quiz_id ? `
       <button class="modal-apply-btn" onclick="goToQuiz(${job.id}, ${job.quiz_id}, '${job.title}', '${job.company}')">
         Apply Now &nbsp;<i class="fas fa-arrow-right"></i>
       </button>
