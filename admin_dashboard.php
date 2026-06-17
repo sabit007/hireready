@@ -125,16 +125,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $timeLimit = (int)required('time_limit');
         $questions = json_decode($_POST['questions'] ?? '[]', true);
 
-        $stmt = $db->prepare("INSERT INTO quizzes (admin_id, job_id, title, topics, pass_mark, time_limit, status, created_at)
-                              VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())");
-        $stmt->bind_param('iissii', $adminId, $jobId, $title, $topics, $passMark, $timeLimit);
+        $stmt = $db->prepare("INSERT INTO quizzes (admin_id, job_id, title, pass_mark, time_limit, status, created_at)
+                              VALUES (?, ?, ?, ?, ?, 'active', NOW())");
+        $stmt->bind_param('iisii', $adminId, $jobId, $title, $passMark, $timeLimit);
         if (!$stmt->execute()) jsonOut(['success' => false, 'message' => $db->error]);
         $quizId = $db->insert_id;
+
+        // Insert quiz topics
+        if ($topics) {
+            $topicIds = explode(',', $topics);
+            $qtStmt = $db->prepare("INSERT INTO quiz_topics (quiz_id, topic_id) VALUES (?, ?)");
+            foreach ($topicIds as $tid) {
+                $tid = (int)trim($tid);
+                if ($tid > 0) {
+                    $qtStmt->bind_param('ii', $quizId, $tid);
+                    $qtStmt->execute();
+                }
+            }
+        }
 
         // Insert questions
         if (is_array($questions)) {
             $qStmt = $db->prepare("INSERT INTO quiz_questions (quiz_id, question_text, question_type, mark, options_json, correct_answer)
                                    VALUES (?, ?, ?, ?, ?, ?)");
+            $qTopicStmt = $db->prepare("INSERT INTO question_topics (question_id, topic_id) VALUES (?, ?)");
             foreach ($questions as $q) {
                 $qText   = $q['text']    ?? '';
                 $qType   = $q['type']    ?? 'MCQ';
@@ -142,7 +156,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $opts    = json_encode($q['options'] ?? []);
                 $correct = $q['correct'] ?? '';
                 $qStmt->bind_param('ississ', $quizId, $qText, $qType, $qMark, $opts, $correct);
-                $qStmt->execute();
+                if ($qStmt->execute()) {
+                    $qId = $qStmt->insert_id;
+                    // Assign topics to question
+                    if (!empty($q['topics'])) {
+                        foreach ($q['topics'] as $qTid) {
+                            $qTid = (int)$qTid;
+                            if ($qTid > 0) {
+                                $qTopicStmt->bind_param('ii', $qId, $qTid);
+                                $qTopicStmt->execute();
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -157,15 +183,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $timeLimit = (int)required('time_limit');
         $questions = json_decode($_POST['questions'] ?? '[]', true);
 
-        $stmt = $db->prepare("UPDATE quizzes SET title=?, topics=?, pass_mark=?, time_limit=? WHERE id=? AND admin_id=?");
-        $stmt->bind_param('ssiiii', $title, $topics, $passMark, $timeLimit, $quizId, $adminId);
+        $stmt = $db->prepare("UPDATE quizzes SET title=?, pass_mark=?, time_limit=? WHERE id=? AND admin_id=?");
+        $stmt->bind_param('siiii', $title, $passMark, $timeLimit, $quizId, $adminId);
         $stmt->execute();
+
+        // Update quiz topics
+        $db->query("DELETE FROM quiz_topics WHERE quiz_id = $quizId");
+        if ($topics) {
+            $topicIds = explode(',', $topics);
+            $qtStmt = $db->prepare("INSERT INTO quiz_topics (quiz_id, topic_id) VALUES (?, ?)");
+            foreach ($topicIds as $tid) {
+                $tid = (int)trim($tid);
+                if ($tid > 0) {
+                    $qtStmt->bind_param('ii', $quizId, $tid);
+                    $qtStmt->execute();
+                }
+            }
+        }
 
         // Replace questions
         $db->query("DELETE FROM quiz_questions WHERE quiz_id = $quizId");
         if (is_array($questions)) {
             $qStmt = $db->prepare("INSERT INTO quiz_questions (quiz_id, question_text, question_type, mark, options_json, correct_answer)
                                    VALUES (?, ?, ?, ?, ?, ?)");
+            $qTopicStmt = $db->prepare("INSERT INTO question_topics (question_id, topic_id) VALUES (?, ?)");
             foreach ($questions as $q) {
                 $qText   = $q['text']    ?? '';
                 $qType   = $q['type']    ?? 'MCQ';
@@ -173,7 +214,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $opts    = json_encode($q['options'] ?? []);
                 $correct = $q['correct'] ?? '';
                 $qStmt->bind_param('ississ', $quizId, $qText, $qType, $qMark, $opts, $correct);
-                $qStmt->execute();
+                if ($qStmt->execute()) {
+                    $qId = $qStmt->insert_id;
+                    // Assign topics to question
+                    if (!empty($q['topics'])) {
+                        foreach ($q['topics'] as $qTid) {
+                            $qTid = (int)$qTid;
+                            if ($qTid > 0) {
+                                $qTopicStmt->bind_param('ii', $qId, $qTid);
+                                $qTopicStmt->execute();
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -203,6 +256,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         jsonOut(['success' => true]);
     }
 
+    if ($action === 'get_applicant_cv') {
+        $applicantUserId = (int)required('user_id');
+        $stmt = $db->prepare("SELECT id, name, email, phone, cv_data FROM users WHERE id = ? LIMIT 1");
+        $stmt->bind_param('i', $applicantUserId);
+        $stmt->execute();
+        $userRow = $stmt->get_result()->fetch_assoc();
+
+        if ($userRow) {
+            $userRow['cv_data_decoded'] = json_decode($userRow['cv_data'] ?? 'null', true);
+            jsonOut(['success' => true, 'user' => $userRow]);
+        } else {
+            jsonOut(['success' => false, 'message' => 'Applicant profile not found.']);
+        }
+    }
+
     // ════════════════════════
     //  COURSES
     // ════════════════════════
@@ -217,11 +285,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if (!$title || !$instructor) jsonOut(['success' => false, 'message' => 'Title and instructor are required.']);
 
-        $stmt = $db->prepare("INSERT INTO courses (admin_id, title, description, topics, instructor, duration, modules, status, created_at)
-                              VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())");
-        $stmt->bind_param('issssss', $adminId, $title, $desc, $topics, $instructor, $duration, $modules);
+        $stmt = $db->prepare("INSERT INTO courses (admin_id, title, description, instructor, duration, modules, status, created_at)
+                              VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())");
+        $stmt->bind_param('isssss', $adminId, $title, $desc, $instructor, $duration, $modules);
         if ($stmt->execute()) {
-            jsonOut(['success' => true, 'course_id' => $db->insert_id]);
+            $courseId = $db->insert_id;
+            
+            // Insert course topics
+            if ($topics) {
+                $topicIds = explode(',', $topics);
+                $ctStmt = $db->prepare("INSERT INTO course_topics (course_id, topic_id) VALUES (?, ?)");
+                foreach ($topicIds as $tid) {
+                    $tid = (int)trim($tid);
+                    if ($tid > 0) {
+                        $ctStmt->bind_param('ii', $courseId, $tid);
+                        $ctStmt->execute();
+                    }
+                }
+            }
+            jsonOut(['success' => true, 'course_id' => $courseId]);
         }
         jsonOut(['success' => false, 'message' => $db->error]);
     }
@@ -367,6 +449,44 @@ $activeCourses   = count(array_filter($courses, fn($c) => $c['status'] === 'acti
 $totalApplicants = (int)($db->query("SELECT COUNT(*) c FROM applicants a JOIN jobs j ON j.id=a.job_id WHERE j.admin_id=$adminId")->fetch_assoc()['c'] ?? 0);
 $quizPassedCount = count($applicants);
 $pendingReview   = count(array_filter($applicants, fn($a) => ($a['status'] ?? 'pending') === 'pending'));
+
+// ── Topics ────────────────────────────────────────────────
+$topicsResult = $db->query("SELECT * FROM topics ORDER BY category, name");
+$allTopics = $topicsResult ? $topicsResult->fetch_all(MYSQLI_ASSOC) : [];
+$topicsByCategory = [];
+foreach ($allTopics as $t) {
+    $topicsByCategory[$t['category']][] = $t;
+}
+
+// ── Fetch Quizzes with their assigned Topics ──────────────
+foreach ($quizzes as &$q) {
+    $qId = $q['id'];
+    $qtRes = $db->query("SELECT t.id, t.name FROM quiz_topics qt JOIN topics t ON t.id = qt.topic_id WHERE qt.quiz_id = $qId");
+    $qTopics = $qtRes ? $qtRes->fetch_all(MYSQLI_ASSOC) : [];
+    $q['topic_ids'] = array_column($qTopics, 'id');
+    $q['topic_names'] = array_column($qTopics, 'name');
+    
+    // Fetch questions and their topics
+    $qqRes = $db->query("SELECT qq.* FROM quiz_questions qq WHERE qq.quiz_id = $qId");
+    $q['questions'] = $qqRes ? $qqRes->fetch_all(MYSQLI_ASSOC) : [];
+    foreach ($q['questions'] as &$qq) {
+        $qqId = $qq['id'];
+        $qqtRes = $db->query("SELECT topic_id FROM question_topics WHERE question_id = $qqId");
+        $qqTopics = $qqtRes ? $qqtRes->fetch_all(MYSQLI_ASSOC) : [];
+        $qq['topic_ids'] = array_column($qqTopics, 'topic_id');
+    }
+}
+unset($q);
+
+// ── Fetch Courses with their assigned Topics ──────────────
+foreach ($courses as &$c) {
+    $cId = $c['id'];
+    $ctRes = $db->query("SELECT t.id, t.name FROM course_topics ct JOIN topics t ON t.id = ct.topic_id WHERE ct.course_id = $cId");
+    $cTopics = $ctRes ? $ctRes->fetch_all(MYSQLI_ASSOC) : [];
+    $c['topic_ids'] = array_column($cTopics, 'id');
+    $c['topic_names'] = array_column($cTopics, 'name');
+}
+unset($c);
 
 // ── Admin profile for settings panel ─────────────────────
 $adminProfile = $db->query("SELECT * FROM admins WHERE id=$adminId LIMIT 1")->fetch_assoc();
@@ -623,6 +743,200 @@ function topicChips(string $topics): string {
     /* TOPIC CHIPS */
     .quiz-topics{display:flex;flex-wrap:wrap;gap:4px;}
     .topic-chip{font-size:11px;font-weight:500;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:2px 7px;color:var(--color-text-muted);}
+
+    /* CATEGORIZED TOPICS SELECTION UI */
+    .topics-select-group {
+      border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      background: var(--color-bg);
+      max-height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .topics-cat-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .topics-cat-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--color-border);
+      padding-bottom: 2px;
+      margin-bottom: 2px;
+    }
+    .topics-chips-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .topic-chip-checkbox {
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .topic-chip-checkbox input[type="checkbox"] {
+      display: none !important;
+    }
+    .topic-chip-checkbox span {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      background: var(--color-bg);
+      border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 4px 10px;
+      transition: all var(--transition);
+    }
+    .topic-chip-checkbox input[type="checkbox"]:checked + span {
+      color: var(--color-text-primary);
+      border-color: var(--color-text-primary);
+      background: var(--color-surface-2);
+      font-weight: 600;
+    }
+
+    /* QUESTION TOPICS SELECTION UI (COLLAPSIBLE) */
+    .q-topics-details {
+      margin-top: 6px;
+      border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-bg);
+    }
+    .q-topics-summary {
+      padding: 8px 12px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      outline: none;
+    }
+    .q-topics-summary::after {
+      content: '▼';
+      font-size: 9px;
+      color: var(--color-text-muted);
+      transition: transform var(--transition);
+    }
+    .q-topics-details[open] .q-topics-summary::after {
+      transform: rotate(180deg);
+    }
+    .q-topics-content {
+      padding: 10px 12px;
+      border-top: 1.5px solid var(--color-border);
+      max-height: 150px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* CV Modal Styling */
+    .cv-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      font-family: 'DM Sans', sans-serif;
+      color: #333;
+    }
+    .cv-header {
+      border-bottom: 2px solid #000;
+      padding-bottom: 15px;
+      margin-bottom: 10px;
+    }
+    .cv-name {
+      font-size: 26px;
+      font-weight: 800;
+      color: #000;
+      letter-spacing: -0.5px;
+      margin-bottom: 5px;
+    }
+    .cv-contact {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 13px;
+      color: #555;
+    }
+    .cv-contact span {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .cv-section-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #000;
+      border-bottom: 1.5px solid #e0e0e0;
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+      margin-top: 10px;
+    }
+    .cv-summary {
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: #444;
+    }
+    .cv-skills-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .cv-skill-tag {
+      font-size: 12px;
+      font-weight: 600;
+      border: 1.5px solid #000;
+      border-radius: 4px;
+      padding: 4px 10px;
+      background: #f7f7f7;
+      color: #000;
+    }
+    .cv-projects-list, .cv-experience-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .cv-project-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .cv-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .cv-item-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #000;
+    }
+    .cv-item-meta {
+      font-size: 12px;
+      color: #666;
+      font-style: italic;
+    }
+    .cv-item-desc {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #555;
+      margin-top: 4px;
+    }
+    .cv-link {
+      color: #000;
+      text-decoration: underline;
+      font-weight: 600;
+    }
 
     /* SPINNER */
     .spinner{width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .65s linear infinite;flex-shrink:0;}
@@ -904,11 +1218,7 @@ function topicChips(string $topics): string {
                 </td>
                 <td style="color:var(--color-text-muted);font-size:12.5px;"><?= $aDate ?></td>
                 <td>
-                  <?php if ($aCvPath): ?>
-                  <a class="btn-action" href="<?= $aCvPath ?>" target="_blank">View CV</a>
-                  <?php else: ?>
-                  <span style="font-size:12px;color:var(--color-text-subtle);">No CV</span>
-                  <?php endif; ?>
+                  <button class="btn-action dark" onclick="viewApplicantCV(<?= (int)$a['user_id'] ?>)">View CV</button>
                 </td>
                 <td>
                   <?php if ($aStatus === 'pending'): ?>
@@ -959,7 +1269,12 @@ function topicChips(string $topics): string {
               <?php else: foreach ($quizzes as $q):
                 $qId     = (int)$q['id'];
                 $qTitle  = htmlspecialchars($q['title']);
-                $qTopics = topicChips($q['topics'] ?? '');
+                $qTopics = '';
+                if (!empty($q['topic_names'])) {
+                    foreach ($q['topic_names'] as $tName) {
+                        $qTopics .= '<span class="topic-chip">' . htmlspecialchars($tName) . '</span>';
+                    }
+                }
                 $qJob    = htmlspecialchars($q['job_title'] ?? '—');
                 $qQCount = (int)$q['question_count'];
                 $qPass   = (int)$q['pass_mark'];
@@ -1024,7 +1339,12 @@ function topicChips(string $topics): string {
                 $cId     = (int)$c['id'];
                 $cTitle  = htmlspecialchars($c['title']);
                 $cDesc   = htmlspecialchars($c['description'] ?? '');
-                $cTopics = topicChips($c['topics'] ?? '');
+                $cTopics = '';
+                if (!empty($c['topic_names'])) {
+                    foreach ($c['topic_names'] as $tName) {
+                        $cTopics .= '<span class="topic-chip">' . htmlspecialchars($tName) . '</span>';
+                    }
+                }
                 $cInstr  = htmlspecialchars($c['instructor']);
                 $cParts  = (int)$c['participants'];
                 $cDur    = htmlspecialchars($c['duration'] ?? '—');
@@ -1105,9 +1425,7 @@ function topicChips(string $topics): string {
         <div class="field"><label>Quiz Title</label><input type="text" id="quiz-title-input" placeholder="e.g. Frontend Engineer Assessment"></div>
         <div class="field">
           <label>Topics Covered</label>
-          <div class="tags-wrap" id="topics-tags" onclick="document.getElementById('topics-input').focus()">
-            <input type="text" id="topics-input" placeholder="e.g. React, CSS, Algorithms…" onkeydown="addTag(event,'topics-tags','topics-input')">
-          </div>
+          <div id="topics-tags-container"></div>
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;"><label style="font-size:12.5px;font-weight:600;">Questions</label></div>
         <div id="questions-list" style="display:flex;flex-direction:column;gap:10px;"></div>
@@ -1183,9 +1501,7 @@ function topicChips(string $topics): string {
       <div class="field"><label>Short Description</label><textarea id="course-desc" placeholder="What will students learn?"></textarea></div>
       <div class="field">
         <label>Topics Covered</label>
-        <div class="tags-wrap" id="course-topics-tags" onclick="document.getElementById('course-topics-input').focus()">
-          <input type="text" id="course-topics-input" placeholder="e.g. JavaScript, Async…" onkeydown="addTag(event,'course-topics-tags','course-topics-input')">
-        </div>
+        <div id="course-topics-container"></div>
       </div>
       <div class="field-row">
         <div class="field"><label>Instructor Name</label><input type="text" id="course-instructor" placeholder="e.g. Dr. Jane Doe"></div>
@@ -1216,6 +1532,24 @@ function topicChips(string $topics): string {
     <div class="modal-footer">
       <button class="topbar-btn" onclick="closeModal('modal-edit-quiz')">Cancel</button>
       <button class="topbar-btn primary" id="saveEditQuizBtn" onclick="saveEditQuiz()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: VIEW CV ══════════ -->
+<div class="modal-overlay" id="modal-view-cv">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-header">
+      <div><h3>Applicant CV Profile</h3><p>Detailed profile compiled from the onboarding survey.</p></div>
+      <button class="modal-close" onclick="closeModal('modal-view-cv')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="view-cv-body" style="padding: 2rem; max-height: 70vh; overflow-y: auto; background: #fff; color: #333;">
+      <div style="text-align:center;padding:2rem;color:var(--color-text-muted);">Loading profile…</div>
+    </div>
+    <div class="modal-footer">
+      <button class="topbar-btn primary" onclick="closeModal('modal-view-cv')">Close</button>
     </div>
   </div>
 </div>
@@ -1331,6 +1665,9 @@ const JOBS = <?= json_encode(array_map(fn($j) => [
   'title' => $j['title'],
   'type'  => $j['job_type'],
 ], $jobs)) ?>;
+const TOPICS_BY_CATEGORY = <?= json_encode($topicsByCategory) ?>;
+const ALL_TOPICS = <?= json_encode($allTopics) ?>;
+const QUIZZES = <?= json_encode($quizzes) ?>;
 
 // ── TAB SWITCHING ────────────────────────────────────────
 const topbarMeta = {
@@ -1465,7 +1802,6 @@ function goToStep2() {
   document.getElementById('job-step-2').style.display = '';
   document.getElementById('step-1-indicator').className = 'step-item done';
   document.getElementById('step-2-indicator').className = 'step-item active';
-  if (document.getElementById('questions-list').children.length === 0) addQuestion();
 }
 
 function goToStep1() {
@@ -1486,7 +1822,7 @@ async function postJob() {
   const quizTitle = document.getElementById('quiz-title-input').value.trim() || title + ' Assessment';
   const passMark  = document.getElementById('quiz-pass-mark').value || '70';
   const timeLimit = document.getElementById('quiz-time-limit').value || '30';
-  const topics    = collectTags('topics-tags', 'topics-input');
+  const topics    = Array.from(document.querySelectorAll('#topics-tags-container input[type="checkbox"]:checked')).map(cb => cb.value).join(',');
   const questions = collectQuestions('#questions-list');
 
   hideErr('add-quiz-error');
@@ -1644,23 +1980,60 @@ async function doCloseQuiz(btn) {
 let _editQuizId = null;
 let editQuizQCount = 0;
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+}
+
+function renderTopicsSelector(containerId, inputName) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  
+  let html = `<div class="topics-select-group">`;
+  for (const [category, list] of Object.entries(TOPICS_BY_CATEGORY)) {
+    html += `
+      <div class="topics-cat-section">
+        <div class="topics-cat-title">${escapeHtml(category)}</div>
+        <div class="topics-chips-grid">
+    `;
+    list.forEach(t => {
+      html += `
+          <label class="topic-chip-checkbox">
+            <input type="checkbox" name="${inputName}" value="${t.id}" data-name="${escapeHtml(t.name)}">
+            <span>${escapeHtml(t.name)}</span>
+          </label>
+      `;
+    });
+    html += `
+        </div>
+      </div>
+    `;
+  }
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
 async function openEditQuizModal(quizId) {
   _editQuizId = quizId;
   editQuizQCount = 0;
   openModal('modal-edit-quiz');
   const body = document.getElementById('edit-quiz-body');
-  body.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--color-text-muted);">Loading quiz…</div>';
+  
+  const quizObj = QUIZZES.find(q => parseInt(q.id) === parseInt(quizId));
+  if (!quizObj) {
+    body.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--color-danger-text);">Error: Quiz not found.</div>';
+    return;
+  }
 
-  const data = await api(fd({ action: 'edit_quiz', quiz_id: quizId, title: '__load__', topics: '', pass_mark: 0, time_limit: 0, questions: '[]' }));
-  // Real load: fetch quiz data via a dedicated GET or embed it
-  // For simplicity, build an editable form with empty quiz
   body.innerHTML = `
-    <div class="field"><label>Quiz Title</label><input type="text" id="eq-title" placeholder="Quiz Title"></div>
+    <div class="field"><label>Quiz Title</label><input type="text" id="eq-title" placeholder="Quiz Title" value="${escapeHtml(quizObj.title)}"></div>
     <div class="field">
       <label>Topics</label>
-      <div class="tags-wrap" id="eq-topics-tags" onclick="document.getElementById('eq-topics-input').focus()">
-        <input type="text" id="eq-topics-input" placeholder="Add topic…" onkeydown="addTag(event,'eq-topics-tags','eq-topics-input')">
-      </div>
+      <div id="eq-topics-tags-container"></div>
     </div>
     <div id="eq-questions-list" style="display:flex;flex-direction:column;gap:10px;"></div>
     <button class="btn-add-question" onclick="addEqQuestion()">
@@ -1668,12 +2041,73 @@ async function openEditQuizModal(quizId) {
       Add Question
     </button>
     <div class="field-row">
-      <div class="field"><label>Pass Mark (%)</label><input type="number" id="eq-pass-mark" placeholder="e.g. 70"></div>
-      <div class="field"><label>Time Limit (min)</label><input type="number" id="eq-time-limit" placeholder="e.g. 45"></div>
+      <div class="field"><label>Pass Mark (%)</label><input type="number" id="eq-pass-mark" placeholder="e.g. 70" value="${quizObj.pass_mark}"></div>
+      <div class="field"><label>Time Limit (min)</label><input type="number" id="eq-time-limit" placeholder="e.g. 45" value="${quizObj.time_limit}"></div>
     </div>
     <div id="edit-quiz-error" style="display:none;font-size:12.5px;color:var(--color-danger-text);padding:8px 12px;background:var(--color-danger-bg);border:1px solid var(--color-danger-border);border-radius:var(--radius-md);"></div>
   `;
-  addEqQuestion();
+  
+  // Render topics selector
+  renderTopicsSelector('eq-topics-tags-container', 'eq-quiz-topics');
+  
+  // Pre-select topics
+  if (quizObj.topic_ids) {
+    quizObj.topic_ids.forEach(tid => {
+      const cb = body.querySelector(`#eq-topics-tags-container input[type="checkbox"][value="${tid}"]`);
+      if (cb) cb.checked = true;
+    });
+  }
+
+  // Populate questions
+  const qList = document.getElementById('eq-questions-list');
+  if (quizObj.questions && quizObj.questions.length > 0) {
+    quizObj.questions.forEach((q) => {
+      editQuizQCount++;
+      const uid = 'eq' + Date.now() + editQuizQCount;
+      const block = makeQuestionBlock(editQuizQCount, uid, 'eq-questions-list');
+      qList.appendChild(block);
+      updateQuestionTopics(uid, 'eq-topics-tags-container');
+      
+      block.querySelector('.field input[type="text"]').value = q.question_text;
+      
+      const typeSel = block.querySelector(`#type-sel-${uid}`);
+      typeSel.value = q.question_type;
+      onTypeChange(typeSel, uid);
+      
+      block.querySelector('.question-mark-input').value = q.mark;
+      
+      let opts = [];
+      try {
+        opts = JSON.parse(q.options_json || '[]');
+      } catch(e) {}
+      
+      if (q.question_type === 'MCQ') {
+        const optsList = block.querySelector(`#opts-${uid}`);
+        optsList.innerHTML = '';
+        opts.forEach((optText, optIdx) => {
+          const letter = LETTERS[optIdx];
+          const div = document.createElement('div');
+          div.className = 'mcq-option';
+          div.innerHTML = `<div class="mcq-option-letter">${letter}</div><input type="text" class="mcq-opt-input" placeholder="Option ${letter}…" value="${escapeHtml(optText)}" oninput="syncCorrectDropdown('${uid}')">${optIdx > 0 ? `<button class="btn-remove-opt" onclick="removeMCQOption(this,'${uid}')">×</button>` : `<span style="width:22px;flex-shrink:0;"></span>`}`;
+          optsList.appendChild(div);
+        });
+        syncCorrectDropdown(uid);
+        block.querySelector(`#correct-${uid}`).value = q.correct_answer;
+      } else {
+        block.querySelector(`#correct-${uid}`).value = q.correct_answer;
+      }
+      
+      // Pre-select question topics
+      if (q.topic_ids) {
+        q.topic_ids.forEach(tid => {
+          const cb = block.querySelector(`.q-topic-chk-${uid}[value="${tid}"]`);
+          if (cb) cb.checked = true;
+        });
+      }
+    });
+  } else {
+    addEqQuestion();
+  }
 }
 
 function addEqQuestion() {
@@ -1686,89 +2120,179 @@ function addEqQuestion() {
 
 async function saveEditQuiz() {
   const title    = document.getElementById('eq-title')?.value.trim();
-  const topics   = collectTags('eq-topics-tags', 'eq-topics-input');
+  const topics   = Array.from(document.querySelectorAll('#eq-topics-tags-container input[type="checkbox"]:checked')).map(cb => cb.value).join(',');
   const passMark = document.getElementById('eq-pass-mark')?.value || '70';
   const timeLimit= document.getElementById('eq-time-limit')?.value || '30';
   const questions = collectQuestions('#eq-questions-list');
 
-  if (!title) { showErr('edit-quiz-error', 'Quiz title is required.'); return; }
+  if (!title) { showErr('edit-quiz-error', 'Quiz title is required.'async function viewApplicantCV(userId) {
+  openModal('modal-view-cv');
+  const body = document.getElementById('view-cv-body');
+  body.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--color-text-muted);"><span class="spinner" style="border-top-color:#000;display:inline-block;"></span> Loading profile…</div>';
 
-  const btn = document.getElementById('saveEditQuizBtn');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving…';
-
-  const data = await api(fd({ action: 'edit_quiz', quiz_id: _editQuizId, title, topics, pass_mark: passMark, time_limit: timeLimit, questions: JSON.stringify(questions) }));
-  btn.disabled = false; btn.textContent = 'Save Changes';
-
-  if (data.success) {
-    closeModal('modal-edit-quiz');
-    sessionStorage.setItem('toastMessage', '✓ Quiz updated!');
-    location.reload();
-  } else {
-    showErr('edit-quiz-error', data.message || 'Failed to save quiz.');
-  }
-}
-
-// ── PUBLISH COURSE ───────────────────────────────────────
-async function publishCourse() {
-  const title      = document.getElementById('course-title').value.trim();
-  const desc       = document.getElementById('course-desc').value.trim();
-  const instructor = document.getElementById('course-instructor').value.trim();
-  const duration   = document.getElementById('course-duration').value.trim();
-  const modules    = document.getElementById('course-modules').value.trim();
-
-  const topics = collectTags('course-topics-tags', 'course-topics-input');
-
-  if (!title || !instructor) { showErr('add-course-error', 'Title and instructor are required.'); return; }
-  hideErr('add-course-error');
-
-  const btn = document.getElementById('publishCourseBtn');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Publishing…';
-
-  const data = await api(fd({ action: 'add_course', title, description: desc, topics, instructor, duration, modules }));
-  btn.disabled = false; btn.textContent = 'Publish Course';
-
-  if (data.success) {
-    closeModal('modal-add-course');
-    sessionStorage.setItem('toastMessage', '✓ Course published!');
-    location.reload();
-  } else {
-    showErr('add-course-error', data.message);
-  }
-}
-
-// ── TOGGLE COURSE ────────────────────────────────────────
-async function doToggleCourse(btn, newStatus) {
-  const row = btn.closest('tr');
-  const data = await api(fd({ action: 'toggle_course', course_id: row.dataset.id, new_status: newStatus }));
-  if (data.success) {
-    const badge = row.querySelector('.badge');
-    if (newStatus === 'active') {
-      badge.className = 'badge badge-active';
-      badge.innerHTML = '<span class="dot"></span>Active';
-      btn.closest('.action-group').innerHTML = '<button class="btn-action danger" onclick="doToggleCourse(this,\'closed\')">Unlist</button>';
-    } else {
-      badge.className = 'badge badge-inactive';
-      badge.innerHTML = '<span class="dot"></span>Closed';
-      btn.closest('.action-group').innerHTML = '<button class="btn-action dark" onclick="doToggleCourse(this,\'active\')">Relist</button>';
+  try {
+    const data = await api(fd({ action: 'get_applicant_cv', user_id: userId }));
+    if (!data.success) {
+      body.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--color-danger-text);">${escapeHtml(data.message)}</div>`;
+      return;
     }
-    row.dataset.status = newStatus;
-    showToast(newStatus === 'active' ? '✓ Course relisted.' : 'Course unlisted.');
-  }
-}
 
-// ── DECIDE APPLICANT ─────────────────────────────────────
-async function decideApplicant(btn, decision) {
-  const row  = btn.closest('tr');
-  const data = await api(fd({ action: 'decide_applicant', applicant_id: row.dataset.id, decision }));
-  if (data.success) {
-    const ag = row.querySelector('.action-group') || btn.parentElement;
-    if (decision === 'approved') {
-      ag.outerHTML = '<span class="badge badge-active" style="padding:5px 12px;">Approved</span>';
-    } else {
-      ag.outerHTML = '<span class="badge badge-inactive" style="padding:5px 12px;">Rejected</span>';
+    const u = data.user;
+    const cv = u.cv_data_decoded || {};
+    
+    // Format sections
+    let summaryHtml = cv.summary ? `<div class="cv-summary">${escapeHtml(cv.summary)}</div>` : '<div style="color:var(--color-text-subtle);font-style:italic;font-size:13px;">No summary provided.</div>';
+    
+    // Skills
+    let skillsHtml = '<div style="color:var(--color-text-subtle);font-style:italic;font-size:13px;">No skills listed.</div>';
+    if (cv.technologies && cv.technologies.length > 0) {
+      skillsHtml = `<div class="cv-skills-grid">`;
+      cv.technologies.forEach(s => {
+        skillsHtml += `<span class="cv-skill-tag">${escapeHtml(s)}</span>`;
+      });
+      skillsHtml += `</div>`;
     }
-    row.dataset.status = decision;
-    showToast(decision === 'approved' ? '✓ Applicant approved.' : 'Applicant rejected.');
+    
+    // Confidence metrics
+    if (cv.skill_prog || cv.skill_db || cv.skill_ps || cv.skill_comm) {
+      skillsHtml += `
+        <div style="margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; font-size: 12px; color: #555;">
+          ${cv.skill_prog ? `<div><strong>Programming:</strong> ${cv.skill_prog}/5</div>` : ''}
+          ${cv.skill_db ? `<div><strong>Databases:</strong> ${cv.skill_db}/5</div>` : ''}
+          ${cv.skill_ps ? `<div><strong>Problem Solving:</strong> ${cv.skill_ps}/5</div>` : ''}
+          ${cv.skill_comm ? `<div><strong>Communication:</strong> ${cv.skill_comm}/5</div>` : ''}
+        </div>
+      `;
+    }
+    
+    // Projects
+    let projectsHtml = '<div style="color:var(--color-text-subtle);font-style:italic;font-size:13px;">No projects listed.</div>';
+    if (cv.projects && cv.projects.length > 0) {
+      projectsHtml = `<div class="cv-projects-list">`;
+      cv.projects.forEach(p => {
+        projectsHtml += `
+          <div class="cv-project-item">
+            <div class="cv-item-header">
+              <span class="cv-item-title">${escapeHtml(p.name)}</span>
+              ${p.github ? `<a href="${escapeHtml(p.github)}" class="cv-link" target="_blank">Repository →</a>` : ''}
+            </div>
+            ${p.techs ? `<div style="font-size:11.5px;color:#666;margin: 2px 0;">Technologies: ${escapeHtml(p.techs)}</div>` : ''}
+            <div class="cv-item-desc">${escapeHtml(p.desc)}</div>
+          </div>
+        `;
+      });
+      projectsHtml += `</div>`;
+    }
+
+    // Education
+    let eduHtml = '<div style="color:var(--color-text-subtle);font-style:italic;font-size:13px;">No education history provided.</div>';
+    if (cv.edu_institution || cv.edu_degree || cv.education_level) {
+      eduHtml = `
+        <div class="cv-experience-list">
+          <div class="cv-project-item">
+            <div class="cv-item-header">
+              <span class="cv-item-title">${escapeHtml(cv.edu_institution || '—')}</span>
+              <span class="cv-item-meta">${escapeHtml(cv.edu_year || '—')}</span>
+            </div>
+            <div class="cv-item-desc">${escapeHtml(cv.edu_degree || '—')} (${escapeHtml(cv.education_level || '—')})</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Preferences / Arrangement
+    let arrangementHtml = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;color:#444;">
+        <div><strong>Arrangement:</strong> ${escapeHtml(cv.work_arrangement || '—')}</div>
+        <div><strong>Employment Type:</strong> ${escapeHtml(cv.employment_type || '—')}</div>
+        <div><strong>Primary Goal:</strong> ${escapeHtml(cv.primary_goal || '—')}</div>
+        <div><strong>Weekly Availability:</strong> ${escapeHtml(cv.availability || '—')}</div>
+      </div>
+    `;
+
+    body.innerHTML = `
+      <div class="cv-container">
+        <div class="cv-header">
+          <h1 class="cv-name">${escapeHtml(u.name)}</h1>
+          <div style="font-size:14px;font-weight:700;color:#000;margin-bottom:8px;">Target Role: ${escapeHtml(cv.role || '—')} | Field: ${escapeHtml(cv.field || '—')} (${escapeHtml(cv.experience_level || '—')})</div>
+          <div class="cv-contact">
+            <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> ${escapeHtml(u.email)}</span>
+            ${u.phone ? `<span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> ${escapeHtml(u.phone)}</span>` : ''}
+            ${cv.link_portfolio ? `<span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> <a href="${escapeHtml(cv.link_portfolio)}" class="cv-link" target="_blank">Portfolio</a></span>` : ''}
+            ${cv.link_linkedin ? `<span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg> <a href="${escapeHtml(cv.link_linkedin)}" class="cv-link" target="_blank">LinkedIn</a></span>` : ''}
+            ${cv.link_github ? `<span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg> <a href="${escapeHtml(cv.link_github)}" class="cv-link" target="_blank">GitHub</a></span>` : ''}
+          </div>
+        </div>
+
+        <div class="cv-section-title">Professional Summary</div>
+        ${summaryHtml}
+
+        <div class="cv-section-title">Skills & Technologies</div>
+        ${skillsHtml}
+
+        <div class="cv-section-title">Projects</div>
+        ${projectsHtml}
+
+        <div class="cv-section-title">Education</div>
+        ${eduHtml}
+
+        <div class="cv-section-title">Preferences & Goals</div>
+        ${arrangementHtml}
+      </div>
+    `;
+  } catch (err) {
+    body.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--color-text-muted);">Failed to retrieve profile info.</div>`;
+  }
+}ar || '—')}</span>
+            </div>
+            <div class="cv-item-desc">${escapeHtml(cv.education.degree || '—')} (${escapeHtml(cv.education.level || '—')})</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Preferences / Arrangement
+    let arrangementHtml = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;color:#444;">
+        <div><strong>Arrangement:</strong> ${escapeHtml(cv.preferences?.arrangement || '—')}</div>
+        <div><strong>Employment Type:</strong> ${escapeHtml(cv.preferences?.jobType || '—')}</div>
+        <div><strong>Primary Goal:</strong> ${escapeHtml(cv.preferences?.primaryGoal || '—')}</div>
+        <div><strong>Weekly Availability:</strong> ${escapeHtml(cv.preferences?.availability || '—')}</div>
+      </div>
+    `;
+
+    body.innerHTML = `
+      <div class="cv-container">
+        <div class="cv-header">
+          <h1 class="cv-name">${escapeHtml(u.name)}</h1>
+          <div style="font-size:14px;font-weight:700;color:#000;margin-bottom:8px;">Target Role: ${escapeHtml(cv.targetRole || '—')} | Field: ${escapeHtml(cv.techField || '—')} (${escapeHtml(cv.experienceLevel || '—')})</div>
+          <div class="cv-contact">
+            <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> ${escapeHtml(u.email)}</span>
+            ${u.phone ? `<span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> ${escapeHtml(u.phone)}</span>` : ''}
+            ${cv.portfolio ? `<span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> <a href="${escapeHtml(cv.portfolio)}" class="cv-link" target="_blank">Portfolio</a></span>` : ''}
+            ${cv.linkedin ? `<span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg> <a href="${escapeHtml(cv.linkedin)}" class="cv-link" target="_blank">LinkedIn</a></span>` : ''}
+            ${cv.github ? `<span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg> <a href="${escapeHtml(cv.github)}" class="cv-link" target="_blank">GitHub</a></span>` : ''}
+          </div>
+        </div>
+
+        <div class="cv-section-title">Professional Summary</div>
+        ${summaryHtml}
+
+        <div class="cv-section-title">Skills & Technologies</div>
+        ${skillsHtml}
+
+        <div class="cv-section-title">Projects</div>
+        ${projectsHtml}
+
+        <div class="cv-section-title">Education</div>
+        ${eduHtml}
+
+        <div class="cv-section-title">Preferences & Goals</div>
+        ${arrangementHtml}
+      </div>
+    `;
+  } catch (err) {
+    body.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--color-text-muted);">Failed to retrieve profile info.</div>`;
   }
 }
 
@@ -1955,7 +2479,58 @@ function onTypeChange(select, uid) {
   if (oldArea) block.replaceChild(tmp.firstElementChild, oldArea);
 }
 
+function updateQuestionTopics(uid, parentContainerId) {
+  const contentDiv = document.getElementById(`q-topics-content-${uid}`);
+  if (!contentDiv) return;
+
+  // Get currently selected quiz topic IDs
+  const checkedTopicIds = Array.from(document.querySelectorAll(`#${parentContainerId} input[type="checkbox"]:checked`))
+                               .map(cb => cb.value.toString());
+
+  if (checkedTopicIds.length === 0) {
+    contentDiv.innerHTML = '<div style="font-size:12px;color:var(--color-text-muted);padding:8px 0;text-align:center;">Please select covered topics at the top of the quiz form first.</div>';
+    return;
+  }
+
+  // Get currently checked topics inside this question so we don't lose the selection
+  const currentCheckedIds = Array.from(contentDiv.querySelectorAll('input[type="checkbox"]:checked'))
+                                 .map(cb => cb.value.toString());
+
+  // Filter global topics to only include those selected in the quiz
+  const activeTopicsByCategory = {};
+  for (const [category, list] of Object.entries(TOPICS_BY_CATEGORY)) {
+    const filteredList = list.filter(t => checkedTopicIds.includes(t.id.toString()));
+    if (filteredList.length > 0) {
+      activeTopicsByCategory[category] = filteredList;
+    }
+  }
+
+  let html = '';
+  for (const [category, list] of Object.entries(activeTopicsByCategory)) {
+    html += `
+      <div class="topics-cat-section">
+        <div class="topics-cat-title">${escapeHtml(category)}</div>
+        <div class="topics-chips-grid">
+    `;
+    list.forEach(t => {
+      const isChecked = currentCheckedIds.includes(t.id.toString()) ? 'checked' : '';
+      html += `
+          <label class="topic-chip-checkbox">
+            <input type="checkbox" class="q-topic-chk-${uid}" value="${t.id}" ${isChecked}>
+            <span>${escapeHtml(t.name)}</span>
+          </label>
+      `;
+    });
+    html += `
+        </div>
+      </div>
+    `;
+  }
+  contentDiv.innerHTML = html || '<div style="font-size:12px;color:var(--color-text-muted);padding:8px 0;text-align:center;">No topics found.</div>';
+}
+
 function makeQuestionBlock(num, uid, listId) {
+  const parentContainerId = listId === 'eq-questions-list' ? 'eq-topics-tags-container' : 'topics-tags-container';
   const block = document.createElement('div');
   block.className = 'question-block';
   block.innerHTML = `
@@ -1969,6 +2544,15 @@ function makeQuestionBlock(num, uid, listId) {
     <div class="field-row" style="grid-template-columns:1fr 80px;">
       <div class="field"><label>Question Type</label><select id="type-sel-${uid}"><option value="MCQ">MCQ (Multiple Choice)</option><option value="True/False">True / False</option><option value="Text">Text (Free Response)</option></select></div>
       <div class="field"><label>Mark</label><input type="number" class="question-mark-input" placeholder="5" min="1" oninput="recalcTotalMarks()"></div>
+    </div>
+    <div class="field">
+      <label style="font-size:12px;font-weight:600;margin-top:4px;">Question Topics</label>
+      <details class="q-topics-details" ontoggle="if(this.open) updateQuestionTopics('${uid}', '${parentContainerId}')">
+        <summary class="q-topics-summary">Select Topics</summary>
+        <div class="q-topics-content" id="q-topics-content-${uid}">
+          <div style="font-size:12.5px;color:var(--color-text-muted);text-align:center;">Please select covered topics at the top of the quiz form first.</div>
+        </div>
+      </details>
     </div>`;
   const tmp = document.createElement('div');
   tmp.innerHTML = buildAnswerArea('MCQ', uid);
@@ -2005,6 +2589,11 @@ function collectQuestions(listSelector) {
     const type    = typeEl?.value || 'MCQ';
     const mark    = parseFloat(block.querySelector('.question-mark-input,input[type="number"]')?.value) || 1;
     const uid     = typeEl?.id.replace('type-sel-','').replace('eq-type-','');
+    
+    // Collect selected topic IDs
+    const topics  = Array.from(block.querySelectorAll(`input[type="checkbox"][class^="q-topic-chk-"]:checked`))
+                         .map(cb => parseInt(cb.value));
+
     let options   = [];
     let correct   = '';
     if (type === 'MCQ' && uid) {
@@ -2019,12 +2608,16 @@ function collectQuestions(listSelector) {
       const inp  = block.querySelector(`#correct-${uid}`);
       correct    = inp ? inp.value.trim() : '';
     }
-    return { text, type, mark, options, correct };
+    return { text, type, mark, options, correct, topics };
   });
 }
 
 // ── DOM CONTENT LOADED INITIALIZER ────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // Render topics multiselect for creation forms
+  renderTopicsSelector('topics-tags-container', 'quiz_topics');
+  renderTopicsSelector('course-topics-container', 'course_topics');
+
   // Restore active tab
   const savedTab = localStorage.getItem('activeTab') || 'overview';
   const navBtn = document.querySelector(`.sidebar-nav .nav-item[data-tab="${savedTab}"]`);

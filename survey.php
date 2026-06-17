@@ -33,15 +33,23 @@ $phone    = htmlspecialchars($userInfo['phone'] ?? '');
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finish_survey'])) {
     $field  = trim($_POST['field'] ?? '');
     $cvData = trim($_POST['cv_data'] ?? '');
+    $cvDataArray = json_decode($cvData, true);
+    $role = $cvDataArray['role'] ?? '';
 
     // Auto-migrate: check if cv_data column exists in users table, if not add it
     $result = $conn->query("SHOW COLUMNS FROM users LIKE 'cv_data'");
     if ($result->num_rows == 0) {
         $conn->query("ALTER TABLE users ADD COLUMN cv_data LONGTEXT DEFAULT NULL");
     }
+    
+    // Auto-migrate: check if role column exists in users table, if not add it
+    $result = $conn->query("SHOW COLUMNS FROM users LIKE 'role'");
+    if ($result->num_rows == 0) {
+        $conn->query("ALTER TABLE users ADD COLUMN role VARCHAR(255) DEFAULT NULL");
+    }
 
-    $stmt = $conn->prepare("UPDATE users SET field=?, cv_data=?, survey_done=1 WHERE id=?");
-    $stmt->bind_param('ssi', $field, $cvData, $userId);
+    $stmt = $conn->prepare("UPDATE users SET field=?, role=?, cv_data=?, survey_done=1 WHERE id=?");
+    $stmt->bind_param('sssi', $field, $role, $cvData, $userId);
     $stmt->execute();
     $stmt->close();
     $conn->close();
@@ -558,6 +566,7 @@ $conn->close();
                             'React', 'Vue', 'Node.js', 'Django', 'Laravel', 'MySQL', 'PostgreSQL', 
                             'MongoDB', 'Docker', 'Git', 'Linux', 'AWS', 'Swift', 'Kotlin', 'Go', 'Flutter'
                         ];
+                        sort($techs);
                         foreach ($techs as $t):
                         ?>
                         <div class="skill-chip" onclick="toggleChip(this,'<?= $t ?>')">
