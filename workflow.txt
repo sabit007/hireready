@@ -93,10 +93,131 @@ User Workflow (consumer - consumes the jobs, courses, quizzes userDashboard load
 		-> Full Name
 		-> Email Address
 		-> Phone Number
-		-> password
-		-> confirm password
-		-> user now completes a survey with questions that builds the persons CV/porfolio
-			Survey Questions:
-				-> 
+		-> Password
+		-> Confirm Password
 
--LogIn ->
+		-> User now completes a profile-building survey
+
+			STEP 1 - Career Information
+			--------------------------------
+			-> Which technology field interests you most?
+				- Web Development
+				- Mobile Development
+				- Data Science
+				- Cybersecurity
+				- Cloud & DevOps
+				- UI/UX Design
+				- Artificial Intelligence
+
+			-> Which role are you targeting?
+				- Frontend Developer
+				- Backend Developer
+				- Full Stack Developer
+				- Mobile Developer
+				- Data Analyst
+				- Cybersecurity Analyst
+				- etc.
+
+			-> Current experience level
+				- Beginner
+				- Intermediate
+				- Advanced
+
+			-> Current status
+				- Student
+				- Fresh Graduate
+				- Working Professional
+				- Career Switcher
+
+			STEP 2 - Skills & Technologies
+			--------------------------------
+			-> Select technologies you have used
+				- HTML
+				- CSS
+				- JavaScript
+				- React
+				- PHP
+				- Python
+				- Java
+				- C#
+				- MySQL
+				- MongoDB
+				- Docker
+				- Git
+				- Linux
+				- AWS
+				- etc.
+
+			-> Rate your confidence (1-5)
+				- Programming
+				- Databases
+				- Problem Solving
+				- Communication
+
+			STEP 3 - Projects & Portfolio
+			--------------------------------
+			-> Have you completed any projects?
+				- Yes / No
+
+			-> If yes:
+				- Project Name
+				- Project Description
+				- Technologies Used
+				- GitHub Link (optional)
+
+			-> Add Another Project button
+
+			-> GitHub Profile URL
+			-> LinkedIn Profile URL
+			-> Portfolio Website URL (optional)
+
+			STEP 4 - Education
+			--------------------------------
+			-> Education Level
+				- Diploma
+				- Bachelor's
+				- Master's
+
+			-> Institution Name
+
+			-> Degree Program
+
+			-> Expected/Completed Graduation Year
+
+			STEP 5 - Professional Summary
+			--------------------------------
+			-> Tell us about yourself
+			   (short paragraph for CV summary section)
+
+			STEP 6 - Goals & Preferences
+			--------------------------------
+			-> Primary Goal
+				- Get a Job Quickly
+				- Improve Skills Before Applying
+				- Find an Internship
+				- Explore Career Options
+
+			-> Preferred Work Arrangement
+				- Remote
+				- Hybrid
+				- On-site
+
+			-> Preferred Employment Type
+				- Full-time
+				- Internship
+				- Contract
+
+			-> Weekly Learning Availability
+				- Less than 5 hours
+				- 5-10 hours
+				- 10+ hours
+
+		-> Survey submitted
+
+		-> System generates a professional profile/CV
+
+		-> User redirected to dashboard
+
+-LogIn -> logs in with email and password
+
+-Dashboard ->
